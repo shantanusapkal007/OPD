@@ -91,3 +91,11 @@ export async function getUpcomingFollowUps(): Promise<Visit[]> {
     .filter(v => v.followUpDate && v.followUpDate >= today)
     .sort((a, b) => (a.followUpDate || "").localeCompare(b.followUpDate || ""));
 }
+
+export async function updateVisitImages(visitId: string, visitImages: string[]): Promise<void> {
+  if (!visitId || !Array.isArray(visitImages)) return;
+  const visitRef = doc(db, COL, visitId);
+  await runTransaction(db, async (transaction) => {
+    transaction.update(visitRef, { visitImages });
+  });
+}

@@ -8,7 +8,7 @@ import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import Image from "next/image"
-import { getVisits, addVisit } from "@/services/visit.service"
+import { getVisits, addVisit, updateVisitImages } from "@/services/visit.service"
 import { searchPatients } from "@/services/patient.service"
 import { uploadFilesToStorage, validateImageFiles } from "@/services/storage.service"
 import type { Visit, Patient, Medicine } from "@/lib/types"
@@ -237,18 +237,10 @@ export default function VisitsPage() {
       )
 
       if (visitImageFiles.length > 0) {
-        try {
-          validateImageFiles(visitImageFiles, 10)
-          if (visitImages.length !== visitImageFiles.length) {
-            const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles)
-            visitImages = await pendingUpload
-          }
-        } catch {
-          throw new Error("Failed to upload visit images.")
-        }
+        validateImageFiles(visitImageFiles, 10)
       }
 
-      await addVisit({
+      const newVisitId = await addVisit({
         patientId: selectedPatient.id!,
         patientName: selectedPatient.fullName,
         visitImages,
@@ -267,6 +259,13 @@ export default function VisitsPage() {
         prescriptions,
         vitals: cleanedVitals,
       })
+
+      if (visitImageFiles.length > 0 && visitImages.length !== visitImageFiles.length) {
+        const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles);
+        pendingUpload.then((urls) => {
+          updateVisitImages(newVisitId, urls).catch(console.error);
+        }).catch(console.error);
+      }
 
       if (typeof form.reset === "function") {
         form.reset()
