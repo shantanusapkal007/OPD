@@ -34,8 +34,21 @@ export default function KhataBookPage() {
   const handleClearDue = async (patient: Patient) => {
     if (!patient.id || !patient.khataBalance || patient.khataBalance >= 0) return;
     
-    const amount = Math.abs(patient.khataBalance);
-    if (!window.confirm(`Are you sure you want to clear the due of Rs. ${amount} for ${patient.fullName}?`)) return;
+    const maxAmount = Math.abs(patient.khataBalance);
+    const amountStr = window.prompt(`Enter amount received from ${patient.fullName} (Max: ₹${maxAmount}):`, maxAmount.toString());
+    
+    if (!amountStr) return; // User cancelled
+    
+    const amount = Number(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount greater than 0.");
+      return;
+    }
+    
+    if (amount > maxAmount) {
+      alert(`Amount cannot exceed the total due of ₹${maxAmount}`);
+      return;
+    }
 
     setClearingId(patient.id);
     try {
@@ -45,7 +58,7 @@ export default function KhataBookPage() {
         amount: amount,
         paymentMethod: "cash",
         status: "paid",
-        description: "Cleared Khata Due",
+        description: amount === maxAmount ? "Cleared Khata Due" : "Partial Khata Payment",
         date: new Date().toISOString().split("T")[0],
       });
       

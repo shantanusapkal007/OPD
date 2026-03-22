@@ -10,7 +10,8 @@ import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useRouter } from "next/navigation"
 import { getAppointmentsByDate, addAppointment, updateAppointmentStatus } from "@/services/appointment.service"
-import { searchPatients } from "@/services/patient.service"
+import { searchPatients, addPatient } from "@/services/patient.service"
+import { Timestamp } from "firebase/firestore"
 import type { Appointment, Patient } from "@/lib/types"
 
 export default function AppointmentsPage() {
@@ -24,6 +25,7 @@ export default function AppointmentsPage() {
   const [patientSearch, setPatientSearch] = useState("")
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [isQuickAddPatient, setIsQuickAddPatient] = useState(false)
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const router = useRouter()
 
@@ -31,6 +33,7 @@ export default function AppointmentsPage() {
     setSelectedPatient(null)
     setPatientSearch("")
     setPatientResults([])
+    setIsQuickAddPatient(false)
   }
 
   const fetchAppointments = useCallback(async () => {
@@ -126,20 +129,50 @@ export default function AppointmentsPage() {
 
       <Modal isOpen={isBookModalOpen} onClose={() => { setIsBookModalOpen(false); resetBookingState() }} title="Book Appointment">
         <form className="space-y-4" onSubmit={handleSave} {...FORM_PROPS}>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Patient</label>
-            <input type="text" value={selectedPatient ? selectedPatient.fullName : patientSearch}
-              onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null) }}
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient by name or mobile..." {...FORM_FIELD_PROPS} />
-            {patientResults.length > 0 && !selectedPatient && (
-              <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white shadow-lg">
-                {patientResults.map(p => (
-                  <button type="button" key={p.id} onClick={() => { setSelectedPatient(p); setPatientSearch(""); setPatientResults([]) }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.fullName} - {p.mobileNumber}</button>
-                ))}
+          {isQuickAddPatient ? (
+            <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-slate-900">Quick Add Patient</h4>
+                <button type="button" onClick={() => setIsQuickAddPatient(false)} className="text-xs text-slate-500 hover:text-slate-700 font-medium">Cancel</button>
               </div>
-            )}
-          </div>
+              <input type="text" id="quickName" placeholder="Full Name *" className="w-full h-9 px-3 rounded border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="text" id="quickMobile" placeholder="Mobile Number *" className="w-full h-9 px-3 rounded border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <Button type="button" size="sm" className="w-full" disabled={isSaving} onClick={async () => {
+                const name = (document.getElementById('quickName') as HTMLInputElement).value.trim();
+                const mobile = (document.getElementById('quickMobile') as HTMLInputElement).value.trim();
+                if (!name || mobile.length < 10) { alert('Valid name and 10-digit mobile required'); return; }
+                setIsSaving(true);
+                try {
+                  const newPatient = {
+                    fullName: name, mobileNumber: mobile, caseNumber: `C-${Date.now().toString().slice(-6)}`, gender: "Other" as const, age: 0, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
+                  };
+                  const newId = await addPatient(newPatient);
+                  setSelectedPatient({ id: newId, ...newPatient });
+                  setIsQuickAddPatient(false);
+                } catch (e: any) { alert(e.message); } finally { setIsSaving(false); }
+              }}>{isSaving ? "Saving..." : "Save & Select"}</Button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-slate-700">Patient</label>
+                {!selectedPatient && (
+                  <button type="button" onClick={() => setIsQuickAddPatient(true)} className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center"><Plus className="w-3 h-3 mr-1" /> New Patient</button>
+                )}
+              </div>
+              <input type="text" value={selectedPatient ? selectedPatient.fullName : patientSearch}
+                onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null) }}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient by name or mobile..." {...FORM_FIELD_PROPS} />
+              {patientResults.length > 0 && !selectedPatient && (
+                <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white shadow-lg">
+                  {patientResults.map(p => (
+                    <button type="button" key={p.id} onClick={() => { setSelectedPatient(p); setPatientSearch(""); setPatientResults([]) }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.fullName} - {p.mobileNumber}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Date</label>
