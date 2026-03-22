@@ -39,6 +39,7 @@ async function optimizeImageForUpload(file: File, folder: string) {
     maxWidthOrHeight: isPatientPhoto ? PATIENT_PHOTO_MAX_DIMENSION : VISIT_IMAGE_MAX_DIMENSION,
     useWebWorker: true,
     fileType: "image/webp",
+    initialQuality: 0.65,
   };
 
   try {
@@ -107,14 +108,16 @@ export async function uploadFilesToStorage(files: File[], folder: string, onProg
     onProgress?.(Math.round(progressTotal / files.length));
   };
 
-  for (let i = 0; i < files.length; i++) {
-    results[i] = await uploadFileToStorage(files[i], folder, (progress) => {
-      fileProgress[i] = progress;
+  await Promise.all(
+    files.map(async (file, i) => {
+      results[i] = await uploadFileToStorage(file, folder, (progress) => {
+        fileProgress[i] = progress;
+        updateOverallProgress();
+      });
+      fileProgress[i] = 100;
       updateOverallProgress();
-    });
-    fileProgress[i] = 100;
-    updateOverallProgress();
-  }
+    })
+  );
 
   onProgress?.(100);
   return results;
