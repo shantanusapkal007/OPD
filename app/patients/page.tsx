@@ -1,0 +1,331 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import { Search, Plus, ChevronRight, Camera, Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Avatar } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { formatCurrency, getTreatmentType } from "@/lib/utils"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Modal } from "@/components/ui/modal"
+import { getPatients, addPatient, searchPatients } from "@/services/patient.service"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { storage } from "@/lib/firebase"
+import type { Patient } from "@/lib/types"
+
+const inputClass = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+const labelClass = "text-sm font-medium text-slate-700"
+const sectionTitle = "text-xs font-semibold text-slate-400 uppercase tracking-wider mt-4 mb-2 pt-4 border-t border-slate-100"
+
+export default function PatientsPage() {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [selectedGender, setSelectedGender] = useState("Male")
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+
+  const fetchPatients = async () => {
+    setLoading(true)
+    try {
+      const data = searchTerm ? await searchPatients(searchTerm) : await getPatients()
+      setPatients(data)
+    } catch (e) {
+      setError("Failed to load patients")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchPatients() }, [searchTerm])
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPhotoFile(file)
+      setPhotoPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsSaving(true)
+    const form = e.currentTarget
+    const fd = new FormData(form)
+    try {
+      let photoURL = ""
+      if (photoFile) {
+        const storageRef = ref(storage, `patient-photos/${Date.now()}_${photoFile.name}`)
+        await uploadBytes(storageRef, photoFile)
+        photoURL = await getDownloadURL(storageRef)
+      }
+
+      const patientData: any = {
+        caseNumber: fd.get("caseNumber") as string,
+        fullName: `${fd.get("firstName")} ${fd.get("lastName")}`,
+        mobileNumber: fd.get("mobile") as string,
+        alternateMobile: fd.get("alternateMobile") as string || "",
+        gender: selectedGender as "Male" | "Female" | "Other",
+        dateOfBirth: fd.get("dob") as string || "",
+        age: parseInt(fd.get("age") as string) || 0,
+        bloodGroup: fd.get("bloodGroup") as string || "",
+        email: fd.get("email") as string || "",
+        occupation: fd.get("occupation") as string || "",
+        maritalStatus: fd.get("maritalStatus") as string || "",
+        address: {
+          line1: fd.get("addressLine1") as string || "",
+          city: fd.get("city") as string || "",
+          state: fd.get("state") as string || "",
+          pincode: fd.get("pincode") as string || "",
+        },
+        allergies: fd.get("allergies") as string || "",
+        chronicDiseases: fd.get("chronicDiseases") as string || "",
+        emergencyContact: fd.get("emergencyContact") as string || "",
+        notes: fd.get("notes") as string || "",
+      };
+
+      if (photoURL) patientData.photo = photoURL;
+      if (selectedGender === "Female") {
+        patientData.lmp = fd.get("lmp") as string || "";
+        patientData.menstrualCycleDays = parseInt(fd.get("menstrualCycleDays") as string) || null;
+      }
+
+      await addPatient(patientData)
+      setIsAddModalOpen(false)
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      form.reset()
+      fetchPatients()
+    } catch (e: any) {
+      alert(e.message || "Failed to save patient. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Patients</h1>
+          <p className="text-sm text-slate-500">Manage registrations, contact details, and patient history.</p>
+        </div>
+        <Button className="w-full sm:w-auto" onClick={() => setIsAddModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Patient
+        </Button>
+      </div>
+
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Register New Patient">
+        <form className="space-y-3 max-h-[70vh] overflow-y-auto pr-2" onSubmit={handleSave}>
+
+          {/* Photo Upload */}
+          <div className="flex items-center gap-4 pb-3 border-b border-slate-100">
+            <div className="relative w-20 h-20 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition-colors" onClick={() => fileInputRef.current?.click()}>
+              {photoPreview ? (
+                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <Camera className="w-6 h-6 text-slate-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-2" /> Upload Photo
+              </Button>
+              <p className="text-xs text-slate-400 mt-1">{photoFile ? photoFile.name : "JPG, PNG up to 5MB"}</p>
+            </div>
+          </div>
+
+          {/* Basic Info */}
+          <h4 className={sectionTitle}>Basic Information</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className={labelClass}>Case Number *</label><input required name="caseNumber" type="text" className={inputClass} placeholder="CS-1006" /></div>
+            <div className="space-y-1"><label className={labelClass}>Mobile Number *</label><input required name="mobile" type="tel" className={inputClass} placeholder="9876543210" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className={labelClass}>First Name *</label><input required name="firstName" type="text" className={inputClass} placeholder="John" /></div>
+            <div className="space-y-1"><label className={labelClass}>Last Name *</label><input required name="lastName" type="text" className={inputClass} placeholder="Doe" /></div>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1"><label className={labelClass}>Age *</label><input required name="age" type="number" className={inputClass} placeholder="30" /></div>
+            <div className="space-y-1">
+              <label className={labelClass}>Gender *</label>
+              <select value={selectedGender} onChange={(e) => setSelectedGender(e.target.value)} className={inputClass}>
+                <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-1"><label className={labelClass}>Blood Group</label><input name="bloodGroup" type="text" className={inputClass} placeholder="B+" /></div>
+            <div className="space-y-1"><label className={labelClass}>DOB</label><input name="dob" type="date" className={inputClass} /></div>
+          </div>
+
+          {selectedGender === "Female" && (
+            <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-pink-800">Last Menstrual Period (LMP)</label>
+                  <input name="lmp" type="date" className={inputClass} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-pink-800">Cycle Length (days)</label>
+                  <input name="menstrualCycleDays" type="number" className={inputClass} placeholder="28" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Contact */}
+          <h4 className={sectionTitle}>Contact Details</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className={labelClass}>Alternate Mobile</label><input name="alternateMobile" type="tel" className={inputClass} placeholder="Alternate number" /></div>
+            <div className="space-y-1"><label className={labelClass}>Email</label><input name="email" type="email" className={inputClass} placeholder="patient@email.com" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className={labelClass}>Emergency Contact</label><input name="emergencyContact" type="tel" className={inputClass} placeholder="Emergency number" /></div>
+            <div className="space-y-1"><label className={labelClass}>Occupation</label><input name="occupation" type="text" className={inputClass} placeholder="e.g. Teacher" /></div>
+          </div>
+
+          {/* Address */}
+          <h4 className={sectionTitle}>Address</h4>
+          <div className="space-y-1"><label className={labelClass}>Address Line</label><input name="addressLine1" type="text" className={inputClass} placeholder="House/Street/Area" /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1"><label className={labelClass}>City</label><input name="city" type="text" className={inputClass} placeholder="City" /></div>
+            <div className="space-y-1"><label className={labelClass}>State</label><input name="state" type="text" className={inputClass} placeholder="Maharashtra" /></div>
+            <div className="space-y-1"><label className={labelClass}>Pincode</label><input name="pincode" type="text" className={inputClass} placeholder="411001" /></div>
+          </div>
+
+          {/* Personal */}
+          <h4 className={sectionTitle}>Personal & Medical</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Marital Status</label>
+              <select name="maritalStatus" className={inputClass}>
+                <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
+              </select>
+            </div>
+            <div className="space-y-1"><label className={labelClass}>Allergies</label><input name="allergies" type="text" className={inputClass} placeholder="e.g. Penicillin" /></div>
+          </div>
+          <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronicDiseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" /></div>
+          <div className="space-y-1"><label className={labelClass}>Notes</label><textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional notes..." /></div>
+
+          <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
+            <Button type="button" variant="outline" onClick={() => { setIsAddModalOpen(false); setPhotoFile(null); setPhotoPreview(null) }} disabled={isSaving}>Cancel</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Register Patient"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <div className="app-section p-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input type="text" placeholder="Search by name, mobile, or case number..."
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+        </div>
+        <p className="mt-3 text-sm text-slate-500">{loading ? "Loading patients..." : `${patients.length} patients found`}</p>
+      </div>
+
+      {error && <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+              <th className="px-4 py-3">Case #</th>
+              <th className="px-4 py-3">Patient</th>
+              <th className="px-4 py-3">Mobile</th>
+              <th className="px-4 py-3">Age/Gen</th>
+              <th className="px-4 py-3">Blood</th>
+              <th className="px-4 py-3">City</th>
+              <th className="px-4 py-3">Khata</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {patients.map((patient) => (
+              <tr key={patient.id} onClick={() => router.push(`/patients/${patient.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                <td className="px-4 py-3 text-blue-600">
+                  <span className="font-bold">{patient.caseNumber}</span>
+                  <Badge variant="outline" className={`ml-2 text-[10px] px-1.5 py-0 font-bold ${getTreatmentType(patient.caseNumber) === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+                    {getTreatmentType(patient.caseNumber).substring(0, 5)}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {patient.photo ? (
+                      <img src={patient.photo} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
+                    ) : (
+                      <Avatar fallback={patient.fullName?.substring(0, 2).toUpperCase()} size="sm" />
+                    )}
+                    <div className="min-w-0">
+                      <span className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors block">{patient.fullName}</span>
+                      {patient.allergies && <span className="text-xs text-red-500">Allergy: {patient.allergies}</span>}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-slate-600">{patient.mobileNumber}</td>
+                <td className="px-4 py-3 text-slate-600">{patient.age}{patient.gender?.[0] ? `/${patient.gender[0]}` : ""}</td>
+                <td className="px-4 py-3 text-slate-600">{patient.bloodGroup || "-"}</td>
+                <td className="px-4 py-3 text-slate-600">{patient.address?.city || "-"}</td>
+                <td className="px-4 py-3">
+                  {(patient.khataBalance ?? 0) !== 0 ? (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khataBalance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                      {(patient.khataBalance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khataBalance || 0))}` : `Advance ${formatCurrency(patient.khataBalance || 0)}`}
+                    </span>
+                  ) : <span className="text-xs text-slate-400">Clear</span>}
+                </td>
+              </tr>
+            ))}
+            {!loading && patients.length === 0 && (
+              <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No patients found. Add your first patient!</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden space-y-3">
+        {patients.map((patient) => (
+          <Link key={patient.id} href={`/patients/${patient.id}`} className="block bg-white rounded-2xl border border-slate-200 p-4 shadow-sm transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-slate-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {patient.photo ? (
+                  <img src={patient.photo} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                ) : (
+                  <Avatar fallback={patient.fullName?.substring(0, 2).toUpperCase()} size="md" />
+                )}
+                <div>
+                  <h3 className="font-medium text-slate-900">{patient.fullName}</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">{patient.mobileNumber}</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+              <span>{patient.age} yrs | {patient.gender}{patient.bloodGroup ? ` | ${patient.bloodGroup}` : ""}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-bold ${getTreatmentType(patient.caseNumber) === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+                  {getTreatmentType(patient.caseNumber)}
+                </Badge>
+                <span className="text-blue-600 font-bold">{patient.caseNumber}</span>
+              </div>
+            </div>
+            {(patient.khataBalance ?? 0) !== 0 && (
+              <div className="mt-2">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khataBalance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                  Khata: {(patient.khataBalance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khataBalance || 0))}` : `Advance ${formatCurrency(patient.khataBalance || 0)}`}
+                </span>
+              </div>
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
