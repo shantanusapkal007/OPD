@@ -7,12 +7,14 @@ import { Avatar } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import { getKhataPatients } from "@/services/patient.service"
+import { addPayment } from "@/services/payment.service"
 import type { Patient } from "@/lib/types"
 
 export default function KhataBookPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [clearingId, setClearingId] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchKhata() {
@@ -28,6 +30,33 @@ export default function KhataBookPage() {
     }
     fetchKhata()
   }, [])
+
+  const handleClearDue = async (patient: Patient) => {
+    if (!patient.id || !patient.khataBalance || patient.khataBalance >= 0) return;
+    
+    const amount = Math.abs(patient.khataBalance);
+    if (!window.confirm(`Are you sure you want to clear the due of Rs. ${amount} for ${patient.fullName}?`)) return;
+
+    setClearingId(patient.id);
+    try {
+      await addPayment({
+        patientId: patient.id,
+        patientName: patient.fullName,
+        amount: amount,
+        paymentMethod: "cash",
+        status: "paid",
+        description: "Cleared Khata Due",
+        date: new Date().toISOString().split("T")[0],
+      });
+      
+      const data = await getKhataPatients();
+      setPatients(data);
+    } catch (e: any) {
+      alert(e.message || "Failed to clear due");
+    } finally {
+      setClearingId(null);
+    }
+  }
 
   const totalOwed = patients.reduce((sum, p) => (p.khataBalance ?? 0) < 0 ? sum + Math.abs(p.khataBalance ?? 0) : sum, 0)
   const totalAdvance = patients.reduce((sum, p) => (p.khataBalance ?? 0) > 0 ? sum + (p.khataBalance ?? 0) : sum, 0)
@@ -99,6 +128,9 @@ export default function KhataBookPage() {
                     <span className="text-lg font-bold text-red-600">₹{Math.abs(p.khataBalance || 0)}</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" onClick={() => handleClearDue(p)} disabled={clearingId === p.id}>
+                      {clearingId === p.id ? "Clearing..." : "Clear Due"}
+                    </Button>
                     <Button variant="outline" size="sm" className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100" onClick={() => {
                         window.open(`https://wa.me/91${p.mobileNumber}?text=Hello ${p.fullName.split(' ')[0]}, this is a gentle reminder from our clinic regarding a pending balance of Rs. ${Math.abs(p.khataBalance || 0)} on your Khata account.`, '_blank')
                     }}>
