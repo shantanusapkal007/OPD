@@ -24,6 +24,8 @@ export default function DashboardPage() {
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
   const [recentPatients, setRecentPatients] = useState<Patient[]>([])
   const [followUps, setFollowUps] = useState<Visit[]>([])
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -64,7 +66,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Good morning, {user?.displayName || "Doctor"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{greeting}, {user?.displayName || "Doctor"}</h1>
         <p className="text-sm text-slate-500">A quick view of today&apos;s patients, follow-ups, and collections.</p>
       </div>
 

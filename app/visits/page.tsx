@@ -177,9 +177,11 @@ export default function VisitsPage() {
         },
       })
 
+      if (typeof form.reset === "function") {
+        form.reset()
+      }
       setIsVisitModalOpen(false)
       resetVisitFormState()
-      form.reset()
       fetchVisits()
     } catch (e: any) {
       alert(e.message || "Failed to record visit.")

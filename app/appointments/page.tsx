@@ -88,9 +88,11 @@ export default function AppointmentsPage() {
         status: "scheduled",
         notes: fd.get("notes") as string || "",
       })
+      if (typeof form.reset === "function") {
+        form.reset()
+      }
       setIsBookModalOpen(false)
       resetBookingState()
-      form.reset()
       fetchAppointments()
     } catch (e: any) {
       alert(e.message || "Failed to book appointment.")

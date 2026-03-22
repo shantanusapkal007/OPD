@@ -89,9 +89,11 @@ export default function PaymentsPage() {
         description: fd.get("description") as string || "",
         date: new Date().toISOString().split("T")[0],
       })
+      if (typeof form.reset === "function") {
+        form.reset()
+      }
       setIsPaymentModalOpen(false)
       resetPaymentState()
-      form.reset()
       fetchPayments()
     } catch (e: any) {
       alert(e.message || "Failed to record payment.")

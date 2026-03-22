@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  getDocs, getDoc, query, orderBy, Timestamp, increment, where
+  getDocs, getDoc, query, orderBy, Timestamp, increment, where, writeBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Patient, TreatmentType } from "@/lib/types";
@@ -195,7 +195,23 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
 }
 
 export async function deletePatient(id: string): Promise<void> {
-  await deleteDoc(doc(db, COL, id));
+  const linkedQueries = [
+    query(collection(db, "appointments"), where("patientId", "==", id)),
+    query(collection(db, "visits"), where("patientId", "==", id)),
+    query(collection(db, "payments"), where("patientId", "==", id)),
+  ];
+
+  const snapshots = await Promise.all(linkedQueries.map((linkedQuery) => getDocs(linkedQuery)));
+  const batch = writeBatch(db);
+
+  snapshots.forEach((snapshot) => {
+    snapshot.docs.forEach((linkedDoc) => {
+      batch.delete(linkedDoc.ref);
+    });
+  });
+
+  batch.delete(doc(db, COL, id));
+  await batch.commit();
   invalidatePatientCache();
 }
 

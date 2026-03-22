@@ -131,9 +131,11 @@ export default function PatientsPage() {
       }
 
       await addPatient(patientData)
+      if (typeof form.reset === "function") {
+        form.reset()
+      }
       setIsAddModalOpen(false)
       resetPatientFormState()
-      form.reset()
       fetchPatients()
     } catch (e: any) {
       alert(e.message || "Failed to save patient. Please try again.")

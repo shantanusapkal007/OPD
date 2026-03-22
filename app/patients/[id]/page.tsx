@@ -112,6 +112,9 @@ export default function PatientDetailPage() {
       }
 
       await updatePatient(patient.id, updateData)
+      if (typeof form.reset === "function") {
+        form.reset()
+      }
       const updated = await getPatient(patient.id)
       setPatient(updated)
       resetEditFormState(updated)
@@ -285,12 +288,18 @@ export default function PatientDetailPage() {
               <Edit className="w-4 h-4 mr-2" /> Edit
             </Button>
             <Button variant="outline" size="sm" className="flex-1 md:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={async () => {
-              if (window.confirm("Are you sure you want to delete this patient?")) {
-                const linked = await getPatientLinkedRecordCounts(patient.id!)
-                if (linked.appointments || linked.visits || linked.payments) {
-                  alert("This patient cannot be deleted because linked appointments, visits, or payments already exist.")
-                  return
-                }
+              const linked = await getPatientLinkedRecordCounts(patient.id!)
+              const linkedSummary = [
+                linked.appointments ? `${linked.appointments} appointment${linked.appointments > 1 ? "s" : ""}` : "",
+                linked.visits ? `${linked.visits} visit${linked.visits > 1 ? "s" : ""}` : "",
+                linked.payments ? `${linked.payments} payment${linked.payments > 1 ? "s" : ""}` : "",
+              ].filter(Boolean).join(", ")
+
+              const confirmMessage = linkedSummary
+                ? `Are you sure you want to delete this patient? This will also delete ${linkedSummary}.`
+                : "Are you sure you want to delete this patient?"
+
+              if (window.confirm(confirmMessage)) {
                 await deletePatient(patient.id!)
                 router.push("/patients")
               }

@@ -7,6 +7,22 @@ import type { Visit } from "@/lib/types";
 
 const COL = "visits";
 
+function stripUndefinedValues<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedValues(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([key, entryValue]) => [key, stripUndefinedValues(entryValue)])
+    ) as T;
+  }
+
+  return value;
+}
+
 export async function getVisits(): Promise<Visit[]> {
   const snap = await getDocs(collection(db, COL));
   const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as Visit));
@@ -25,6 +41,13 @@ export async function addVisit(data: Omit<Visit, "id" | "createdAt">): Promise<s
   const complaints = data.complaints?.trim();
   const diagnosis = data.diagnosis?.trim();
   const totalBill = Number(data.totalBill || 0);
+  const sanitizedData = stripUndefinedValues({
+    ...data,
+    patientName,
+    complaints,
+    diagnosis,
+    totalBill,
+  });
 
   if (!data.patientId || !patientName || !complaints || !diagnosis) {
     throw new Error("Patient, complaints, and diagnosis are required.");
@@ -44,11 +67,7 @@ export async function addVisit(data: Omit<Visit, "id" | "createdAt">): Promise<s
     }
 
     transaction.set(visitRef, {
-      ...data,
-      patientName,
-      complaints,
-      diagnosis,
-      totalBill,
+      ...sanitizedData,
       createdAt: Timestamp.now(),
     });
 
