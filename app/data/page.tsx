@@ -10,6 +10,25 @@ import { getVisits } from "@/services/visit.service"
 import { getPayments } from "@/services/payment.service"
 import { getAppointments } from "@/services/appointment.service"
 
+const EXPORT_CARD_STYLES = {
+  blue: {
+    iconBg: "bg-blue-50",
+    iconText: "text-blue-600",
+  },
+  green: {
+    iconBg: "bg-green-50",
+    iconText: "text-green-600",
+  },
+  purple: {
+    iconBg: "bg-purple-50",
+    iconText: "text-purple-600",
+  },
+  orange: {
+    iconBg: "bg-orange-50",
+    iconText: "text-orange-600",
+  },
+} as const
+
 function arrayToCSV(headers: string[], rows: string[][]): string {
   const escape = (val: string) => `"${(val || "").replace(/"/g, '""')}"`
   const headerLine = headers.map(escape).join(",")
@@ -68,6 +87,13 @@ export default function DataPage() {
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const resetImportSelection = () => {
+    setImportPreview(null)
+    if (fileRef.current) {
+      fileRef.current.value = ""
+    }
+  }
 
   const exportPatients = async () => {
     setExporting("patients")
@@ -208,6 +234,16 @@ export default function DataPage() {
     let failed = 0
     const { headers, rows } = importPreview
     const idx = (name: string) => headers.findIndex((header) => header.toLowerCase().includes(name.toLowerCase()))
+    const numberOrDefault = (value: string, fallback = 0) => {
+      const parsed = Number.parseInt(value, 10)
+      return Number.isFinite(parsed) ? parsed : fallback
+    }
+    const normalizeTreatmentType = (value: string, caseNumber: string) => {
+      const normalized = value.trim().toLowerCase()
+      if (normalized === "allopathic") return "Allopathic"
+      if (normalized === "homeopathic") return "Homeopathic"
+      return getTreatmentType(caseNumber)
+    }
 
     for (const row of rows) {
       try {
@@ -215,14 +251,15 @@ export default function DataPage() {
           const index = idx(name)
           return index >= 0 ? row[index] || "" : ""
         }
+        const caseNumber = get("case")
         const importedTreatmentType = get("treatment")
         const patientData: any = {
-          caseNumber: get("case"),
-          treatmentType: importedTreatmentType === "Homeopathic" || importedTreatmentType === "Allopathic" ? importedTreatmentType : getTreatmentType(get("case")),
+          caseNumber,
+          treatmentType: normalizeTreatmentType(importedTreatmentType, caseNumber),
           fullName: get("name") || get("full name"),
           mobileNumber: get("mobile") || get("phone"),
           gender: (get("gender") || "Male") as "Male" | "Female" | "Other",
-          age: parseInt(get("age")) || 0,
+          age: numberOrDefault(get("age")),
           bloodGroup: get("blood"),
           email: get("email"),
           occupation: get("occupation"),
@@ -232,6 +269,9 @@ export default function DataPage() {
           allergies: get("allerg"),
           chronicDiseases: get("chronic"),
           emergencyContact: get("emergency"),
+          lmp: get("lmp"),
+          menstrualCycleDays: numberOrDefault(get("cycle"), 0) || undefined,
+          khataBalance: numberOrDefault(get("khata balance"), 0),
           notes: get("notes"),
           address: {
             line1: get("address"),
@@ -255,10 +295,16 @@ export default function DataPage() {
 
     setImportStatus({ success, failed, total: rows.length })
     setImporting(false)
-    setImportPreview(null)
+    resetImportSelection()
   }
 
-  const exportCards = [
+  const exportCards: Array<{
+    label: string
+    icon: typeof Users
+    color: keyof typeof EXPORT_CARD_STYLES
+    fn: () => Promise<void>
+    key: string
+  }> = [
     { label: "Patients", icon: Users, color: "blue", fn: exportPatients, key: "patients" },
     { label: "Visits", icon: Pill, color: "green", fn: exportVisits, key: "visits" },
     { label: "Payments", icon: IndianRupee, color: "purple", fn: exportPayments, key: "payments" },
@@ -280,13 +326,21 @@ export default function DataPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {exportCards.map((card) => (
-            <Card key={card.key} className="hover:shadow-md transition-shadow cursor-pointer" onClick={card.fn}>
+            <Card
+              key={card.key}
+              className={`transition-shadow ${exporting ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:shadow-md"}`}
+              onClick={() => {
+                if (!exporting) {
+                  card.fn()
+                }
+              }}
+            >
               <CardContent className="p-5 flex flex-col items-center text-center gap-3">
-                <div className={`w-12 h-12 rounded-xl bg-${card.color}-50 flex items-center justify-center`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${EXPORT_CARD_STYLES[card.color].iconBg}`}>
                   {exporting === card.key ? (
-                    <Loader2 className={`w-6 h-6 text-${card.color}-600 animate-spin`} />
+                    <Loader2 className={`w-6 h-6 animate-spin ${EXPORT_CARD_STYLES[card.color].iconText}`} />
                   ) : (
-                    <card.icon className={`w-6 h-6 text-${card.color}-600`} />
+                    <card.icon className={`w-6 h-6 ${EXPORT_CARD_STYLES[card.color].iconText}`} />
                   )}
                 </div>
                 <div>
