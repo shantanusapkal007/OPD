@@ -11,6 +11,7 @@ import type { UserRole } from '@/lib/types';
 // ==========================================
 const DEFAULT_ALLOWED_EMAILS = [
   "shantanusapkal007@gmail.com",
+  "tusharsuradkar184@gmail.com",
   "doctor@example.com",
 ];
 
