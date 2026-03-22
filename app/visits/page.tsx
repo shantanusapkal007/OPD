@@ -237,7 +237,15 @@ export default function VisitsPage() {
       )
 
       if (visitImageFiles.length > 0) {
-        validateImageFiles(visitImageFiles, 10)
+        try {
+          validateImageFiles(visitImageFiles, 10)
+          if (visitImages.length !== visitImageFiles.length) {
+            const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles)
+            visitImages = await pendingUpload
+          }
+        } catch {
+          throw new Error("Failed to upload visit images.")
+        }
       }
 
       const newVisitId = await addVisit({
@@ -260,12 +268,7 @@ export default function VisitsPage() {
         vitals: cleanedVitals,
       })
 
-      if (visitImageFiles.length > 0 && visitImages.length !== visitImageFiles.length) {
-        const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles);
-        pendingUpload.then((urls) => {
-          updateVisitImages(newVisitId, urls).catch(console.error);
-        }).catch(console.error);
-      }
+
 
       if (typeof form.reset === "function") {
         form.reset()
