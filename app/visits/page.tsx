@@ -17,6 +17,22 @@ const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:ou
 const lbl = "text-sm font-medium text-slate-700"
 const secHead = "text-xs font-semibold text-slate-400 uppercase tracking-wider mt-2 mb-1 pt-3 border-t border-slate-100"
 
+function parseOptionalInteger(value: FormDataEntryValue | null) {
+  const input = String(value ?? "").trim()
+  if (!input) return undefined
+
+  const parsed = Number.parseInt(input, 10)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function parseOptionalFloat(value: FormDataEntryValue | null) {
+  const input = String(value ?? "").trim()
+  if (!input) return undefined
+
+  const parsed = Number.parseFloat(input)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 export default function VisitsPage() {
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -135,6 +151,19 @@ export default function VisitsPage() {
       }
 
       let visitImages: string[] = []
+      const vitals = {
+        bp: (fd.get("bp") as string || "").trim(),
+        weight: parseOptionalInteger(fd.get("weight")),
+        height: parseOptionalInteger(fd.get("height")),
+        temperature: parseOptionalFloat(fd.get("temperature")),
+        pulse: parseOptionalInteger(fd.get("pulse")),
+        spo2: parseOptionalInteger(fd.get("spo2")),
+        respiratoryRate: parseOptionalInteger(fd.get("respiratoryRate")),
+      }
+
+      const cleanedVitals = Object.fromEntries(
+        Object.entries(vitals).filter(([, value]) => value !== undefined && value !== "")
+      )
 
       if (visitImageFiles.length > 0) {
         setIsUploadingImages(true)
@@ -166,15 +195,7 @@ export default function VisitsPage() {
         referral: fd.get("referral") as string || "",
         followUpDate: fd.get("followUpDate") as string || "",
         prescriptions,
-        vitals: {
-          bp: fd.get("bp") as string || "",
-          weight: parseInt(fd.get("weight") as string) || undefined,
-          height: parseInt(fd.get("height") as string) || undefined,
-          temperature: parseFloat(fd.get("temperature") as string) || undefined,
-          pulse: parseInt(fd.get("pulse") as string) || undefined,
-          spo2: parseInt(fd.get("spo2") as string) || undefined,
-          respiratoryRate: parseInt(fd.get("respiratoryRate") as string) || undefined,
-        },
+        vitals: cleanedVitals,
       })
 
       if (typeof form.reset === "function") {
