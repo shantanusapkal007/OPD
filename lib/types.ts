@@ -99,6 +99,7 @@ export interface Visit {
   labTests?: string;
   investigationsAdvised?: string;
   totalBill?: number; // Charge applied to Khata
+  paymentStatus?: "paid" | "unpaid";
   advice?: string;
   referral?: string;
   followUpDate?: string;

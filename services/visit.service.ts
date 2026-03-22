@@ -72,10 +72,25 @@ export async function addVisit(data: Omit<Visit, "id" | "createdAt">): Promise<s
     });
 
     if (totalBill > 0) {
-      transaction.update(patientRef, {
-        khataBalance: increment(-totalBill),
-        updatedAt: Timestamp.now(),
-      });
+      if (data.paymentStatus === "paid") {
+        const paymentRef = doc(collection(db, "payments"));
+        transaction.set(paymentRef, {
+          patientId: data.patientId,
+          patientName,
+          visitId: visitRef.id,
+          amount: totalBill,
+          paymentMethod: "cash",
+          status: "paid",
+          description: "Payment for Visit",
+          date: new Date().toISOString().split("T")[0],
+          createdAt: Timestamp.now(),
+        });
+      } else {
+        transaction.update(patientRef, {
+          khataBalance: increment(-totalBill),
+          updatedAt: Timestamp.now(),
+        });
+      }
     }
   });
 

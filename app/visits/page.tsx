@@ -264,6 +264,7 @@ export default function VisitsPage() {
         advice: fd.get("advice") as string || "",
         referral: fd.get("referral") as string || "",
         followUpDate: fd.get("followUpDate") as string || "",
+        paymentStatus: (fd.get("paymentStatus") as "paid" | "unpaid") || "unpaid",
         prescriptions,
         vitals: cleanedVitals,
       })
@@ -425,9 +426,21 @@ export default function VisitsPage() {
           </div>
 
           {/* Billing */}
-          <div className="space-y-1.5 p-3 bg-red-50 border border-red-100 rounded-lg mt-2">
-            <label className="text-sm font-medium text-red-800">Total Bill / Charge (Rs.) - Updates Khata Book</label>
-            <input name="totalBill" type="number" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" placeholder="500" {...FORM_FIELD_PROPS} />
+          <div className="p-3 bg-red-50 border border-red-100 rounded-lg mt-2 space-y-3">
+            <label className="text-sm font-semibold text-red-800 block">Billing Details</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-red-800">Total Bill (Rs.)</label>
+                <input name="totalBill" type="number" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" placeholder="500" {...FORM_FIELD_PROPS} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-red-800">Payment Status</label>
+                <select name="paymentStatus" defaultValue="unpaid" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" {...FORM_FIELD_PROPS}>
+                  <option value="unpaid">Unpaid (Add to Khata)</option>
+                  <option value="paid">Paid (Instantly)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
