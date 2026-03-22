@@ -136,6 +136,24 @@ export default function SettingsPage() {
             </form>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-3 pb-2 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-indigo-600" />
+            </div>
+            <CardTitle className="text-lg">Data Management</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h4 className="font-medium text-slate-900 mb-1">Import / Export Clinic Data</h4>
+              <p className="text-sm text-slate-500 mb-4">Backup your patient records, appointments, and settings, or import them from another system.</p>
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => window.location.href = '/data'} variant="default">Go to Data Management</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

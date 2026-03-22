@@ -46,10 +46,14 @@ export default function VisitsPage() {
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const [visitImageFiles, setVisitImageFiles] = useState<File[]>([])
   const [visitImagePreviews, setVisitImagePreviews] = useState<string[]>([])
+  const [uploadedVisitImageUrls, setUploadedVisitImageUrls] = useState<string[]>([])
   const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [visitImageUploadProgress, setVisitImageUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState("")
 
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const visitImageUploadPromiseRef = useRef<Promise<string[]> | null>(null)
+  const visitImageUploadTokenRef = useRef(0)
 
   const fetchVisits = async () => {
     setLoading(true)
@@ -94,11 +98,70 @@ export default function VisitsPage() {
     }
   }, [visitImagePreviews])
 
+  const revokeVisitImagePreviews = (previews: string[]) => {
+    previews.forEach((preview) => URL.revokeObjectURL(preview))
+  }
+
+  const uploadVisitImages = (files: File[]) => {
+    if (files.length === 0) {
+      visitImageUploadPromiseRef.current = null
+      setUploadedVisitImageUrls([])
+      setVisitImageUploadProgress(0)
+      setIsUploadingImages(false)
+      return Promise.resolve<string[]>([])
+    }
+
+    const uploadToken = visitImageUploadTokenRef.current + 1
+    visitImageUploadTokenRef.current = uploadToken
+    setUploadedVisitImageUrls([])
+    setVisitImageUploadProgress(0)
+    setIsUploadingImages(true)
+    setUploadError("")
+
+    let uploadPromise: Promise<string[]>
+    uploadPromise = uploadFilesToStorage(files, "visit-images", (progress) => {
+      if (visitImageUploadTokenRef.current !== uploadToken) return
+      setVisitImageUploadProgress(progress)
+    })
+      .then((urls) => {
+        if (visitImageUploadTokenRef.current === uploadToken) {
+          setUploadedVisitImageUrls(urls)
+          setVisitImageUploadProgress(100)
+        }
+        return urls
+      })
+      .catch(() => {
+        if (visitImageUploadTokenRef.current === uploadToken) {
+          setUploadedVisitImageUrls([])
+          setUploadError("Failed to upload visit images. Please try again.")
+        }
+        throw new Error("Failed to upload visit images.")
+      })
+      .finally(() => {
+        if (visitImageUploadTokenRef.current === uploadToken) {
+          setIsUploadingImages(false)
+        }
+
+        if (visitImageUploadPromiseRef.current === uploadPromise) {
+          visitImageUploadPromiseRef.current = null
+        }
+      })
+
+    visitImageUploadPromiseRef.current = uploadPromise
+    return uploadPromise
+  }
+
   const resetVisitFormState = () => {
+    visitImageUploadTokenRef.current += 1
+    visitImageUploadPromiseRef.current = null
     setSelectedPatient(null)
     setPatientSearch("")
     setPatientResults([])
     setVisitImageFiles([])
+    setUploadedVisitImageUrls([])
+    setVisitImageUploadProgress(0)
+    setIsUploadingImages(false)
+    revokeVisitImagePreviews(visitImagePreviews)
     setVisitImagePreviews([])
     setUploadError("")
     if (imageInputRef.current) {
@@ -112,11 +175,19 @@ export default function VisitsPage() {
       if (files.length === 0) return
 
       validateImageFiles(files, 10)
+      revokeVisitImagePreviews(visitImagePreviews)
       setVisitImageFiles(files)
       setVisitImagePreviews(files.map((file) => URL.createObjectURL(file)))
       setUploadError("")
+      uploadVisitImages(files).catch(() => undefined)
     } catch (error: any) {
+      visitImageUploadTokenRef.current += 1
+      visitImageUploadPromiseRef.current = null
       setVisitImageFiles([])
+      setUploadedVisitImageUrls([])
+      setVisitImageUploadProgress(0)
+      setIsUploadingImages(false)
+      revokeVisitImagePreviews(visitImagePreviews)
       setVisitImagePreviews([])
       setUploadError(error.message || "Invalid visit images.")
       if (imageInputRef.current) {
@@ -150,7 +221,7 @@ export default function VisitsPage() {
         throw new Error("Chief complaints are required.")
       }
 
-      let visitImages: string[] = []
+      let visitImages = uploadedVisitImageUrls
       const vitals = {
         bp: (fd.get("bp") as string || "").trim(),
         weight: parseOptionalInteger(fd.get("weight")),
@@ -166,15 +237,14 @@ export default function VisitsPage() {
       )
 
       if (visitImageFiles.length > 0) {
-        setIsUploadingImages(true)
         try {
           validateImageFiles(visitImageFiles, 10)
-          visitImages = await uploadFilesToStorage(visitImageFiles, `visit-images/${selectedPatient.id}`)
+          if (visitImages.length !== visitImageFiles.length) {
+            const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles)
+            visitImages = await pendingUpload
+          }
         } catch {
-          setUploadError("Failed to upload visit images. Please try again.")
           throw new Error("Failed to upload visit images.")
-        } finally {
-          setIsUploadingImages(false)
         }
       }
 
@@ -305,7 +375,13 @@ export default function VisitsPage() {
               <div>
                 <p className="text-sm font-medium text-slate-700">Attach case images</p>
                 <p className="text-xs text-slate-500">
-                  {visitImageFiles.length > 0 ? `${visitImageFiles.length} image${visitImageFiles.length > 1 ? "s" : ""} selected` : "Upload multiple images before saving this visit."}
+                  {visitImageFiles.length === 0
+                    ? "Upload multiple images before saving this visit."
+                    : isUploadingImages
+                      ? `${visitImageFiles.length} image${visitImageFiles.length > 1 ? "s" : ""} uploading in background`
+                      : uploadedVisitImageUrls.length === visitImageFiles.length
+                        ? `${visitImageFiles.length} image${visitImageFiles.length > 1 ? "s" : ""} ready`
+                        : `${visitImageFiles.length} image${visitImageFiles.length > 1 ? "s" : ""} selected`}
                 </p>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => imageInputRef.current?.click()}>
@@ -322,9 +398,17 @@ export default function VisitsPage() {
               </div>
             )}
             {isUploadingImages && (
-              <div className="flex items-center gap-2 text-xs font-medium text-blue-600">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Uploading {visitImageFiles.length} visit image{visitImageFiles.length > 1 ? "s" : ""}...
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-blue-600">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Uploading {visitImageFiles.length} visit image{visitImageFiles.length > 1 ? "s" : ""}... {visitImageUploadProgress}%
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-blue-500 transition-[width] duration-150"
+                    style={{ width: `${visitImageUploadProgress}%` }}
+                  />
+                </div>
               </div>
             )}
             {uploadError && <p className="text-xs font-medium text-red-600">{uploadError}</p>}
@@ -346,7 +430,7 @@ export default function VisitsPage() {
 
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
             <Button type="button" variant="outline" onClick={() => { setIsVisitModalOpen(false); resetVisitFormState() }} disabled={isSaving}>Cancel</Button>
-            <Button type="submit" disabled={isSaving}>{isUploadingImages ? "Uploading Images..." : isSaving ? "Saving..." : "Save Visit"}</Button>
+            <Button type="submit" disabled={isSaving}>{isUploadingImages ? `Uploading ${visitImageUploadProgress}%...` : isSaving ? "Saving..." : "Save Visit"}</Button>
           </div>
         </form>
       </Modal>

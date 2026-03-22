@@ -1,10 +1,15 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 
 const MB = 1024 * 1024;
-const PATIENT_PHOTO_MAX_DIMENSION = 960;
-const VISIT_IMAGE_MAX_DIMENSION = 1600;
-const DEFAULT_QUALITY = 0.82;
+const PATIENT_PHOTO_MAX_DIMENSION = 720;
+const VISIT_IMAGE_MAX_DIMENSION = 1024;
+const PATIENT_PHOTO_QUALITY = 0.78;
+const VISIT_IMAGE_QUALITY = 0.65;
+const DEFAULT_QUALITY = 0.8;
+const MAX_PARALLEL_UPLOADS = 8;
+
+type UploadProgressCallback = (progress: number) => void;
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
@@ -24,6 +29,30 @@ function createStoragePath(folder: string, fileName: string) {
 
 function getUploadMaxDimension(folder: string) {
   return folder.includes("patient-photos") ? PATIENT_PHOTO_MAX_DIMENSION : VISIT_IMAGE_MAX_DIMENSION;
+}
+
+function getUploadQuality(folder: string) {
+  if (folder.includes("patient-photos")) {
+    return PATIENT_PHOTO_QUALITY;
+  }
+
+  if (folder.includes("visit-images")) {
+    return VISIT_IMAGE_QUALITY;
+  }
+
+  return DEFAULT_QUALITY;
+}
+
+function getOutputType(file: File) {
+  if (file.type === "image/svg+xml" || file.type === "image/gif") {
+    return file.type;
+  }
+
+  return "image/webp";
+}
+
+function replaceFileExtension(fileName: string, nextExtension: string) {
+  return fileName.replace(/\.[^./\\]+$/, "") + `.${nextExtension}`;
 }
 
 function loadImageFromFile(file: File) {
@@ -79,15 +108,15 @@ async function optimizeImageForUpload(file: File, folder: string) {
 
   context.drawImage(image, 0, 0, width, height);
 
-  const outputType = file.type === "image/png" ? "image/png" : file.type === "image/webp" ? "image/webp" : "image/jpeg";
-  const optimizedBlob = await canvasToBlob(canvas, outputType, DEFAULT_QUALITY);
+  const outputType = getOutputType(file);
+  const optimizedBlob = await canvasToBlob(canvas, outputType, getUploadQuality(folder));
 
   if (!optimizedBlob || optimizedBlob.size >= file.size) {
     return file;
   }
 
   return new File([optimizedBlob], file.name, {
-    type: outputType,
+    type: outputType === file.type ? file.type : "image/webp",
     lastModified: file.lastModified,
   });
 }
@@ -104,13 +133,60 @@ export function validateImageFiles(files: File[], maxSizeMb: number) {
   }
 }
 
-export async function uploadFileToStorage(file: File, folder: string) {
+export async function uploadFileToStorage(file: File, folder: string, onProgress?: UploadProgressCallback) {
   const optimizedFile = await optimizeImageForUpload(file, folder);
-  const storageRef = ref(storage, createStoragePath(folder, optimizedFile.name));
-  await uploadBytes(storageRef, optimizedFile, { contentType: optimizedFile.type || file.type });
-  return getDownloadURL(storageRef);
+  const fileName = optimizedFile.type === "image/webp" && !optimizedFile.name.toLowerCase().endsWith(".webp")
+    ? replaceFileExtension(optimizedFile.name, "webp")
+    : optimizedFile.name;
+  const storageRef = ref(storage, createStoragePath(folder, fileName));
+
+  return new Promise<string>((resolve, reject) => {
+    const uploadTask = uploadBytesResumable(storageRef, optimizedFile, { contentType: optimizedFile.type || file.type });
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        if (!snapshot.totalBytes) return;
+        onProgress?.(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100));
+      },
+      reject,
+      async () => {
+        resolve(await getDownloadURL(storageRef));
+      }
+    );
+  });
 }
 
-export async function uploadFilesToStorage(files: File[], folder: string) {
-  return Promise.all(files.map((file) => uploadFileToStorage(file, folder)));
+export async function uploadFilesToStorage(files: File[], folder: string, onProgress?: UploadProgressCallback) {
+  if (files.length === 0) {
+    onProgress?.(100);
+    return [];
+  }
+
+  const results = new Array<string>(files.length);
+  const fileProgress = new Array<number>(files.length).fill(0);
+  let nextIndex = 0;
+
+  const updateOverallProgress = () => {
+    const progressTotal = fileProgress.reduce((sum, value) => sum + value, 0);
+    onProgress?.(Math.round(progressTotal / files.length));
+  };
+
+  const worker = async () => {
+    while (nextIndex < files.length) {
+      const currentIndex = nextIndex++;
+      results[currentIndex] = await uploadFileToStorage(files[currentIndex], folder, (progress) => {
+        fileProgress[currentIndex] = progress;
+        updateOverallProgress();
+      });
+      fileProgress[currentIndex] = 100;
+      updateOverallProgress();
+    }
+  };
+
+  const workerCount = Math.min(MAX_PARALLEL_UPLOADS, files.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  onProgress?.(100);
+
+  return results;
 }

@@ -8,8 +8,8 @@ const AUTHENTICATED_ROUTE_PREFIXES = [
   "/khata",
 ];
 
-const DOCTOR_ROUTE_PREFIXES = ["/visits"];
-const ADMIN_ROUTE_PREFIXES = ["/settings", "/data"];
+const DOCTOR_ROUTE_PREFIXES = ["/visits", "/data"];
+const ADMIN_ROUTE_PREFIXES = ["/settings"];
 
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || (prefix !== "/" && pathname.startsWith(prefix));
