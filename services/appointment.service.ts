@@ -28,14 +28,37 @@ export async function getAppointmentsByPatient(patientId: string): Promise<Appoi
 }
 
 export async function addAppointment(data: Omit<Appointment, "id" | "createdAt">): Promise<string> {
+  const appointmentDate = data.appointmentDate?.trim();
+  const timeSlot = data.timeSlot?.trim();
+  const patientName = data.patientName?.trim();
+
+  if (!data.patientId || !patientName || !appointmentDate || !timeSlot || !data.type?.trim()) {
+    throw new Error("Please complete all required appointment fields.");
+  }
+
+  const duplicateQuery = query(
+    collection(db, COL),
+    where("patientId", "==", data.patientId),
+    where("appointmentDate", "==", appointmentDate),
+    where("timeSlot", "==", timeSlot)
+  );
+  const duplicateSnap = await getDocs(duplicateQuery);
+  if (!duplicateSnap.empty) {
+    throw new Error("This patient already has an appointment for the selected date and time.");
+  }
+
   const ref = await addDoc(collection(db, COL), {
     ...data,
+    patientName,
+    appointmentDate,
+    timeSlot,
     createdAt: Timestamp.now(),
   });
   return ref.id;
 }
 
 export async function updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
+  if (!id) throw new Error("Appointment not found.");
   await updateDoc(doc(db, COL, id), { status });
 }
 

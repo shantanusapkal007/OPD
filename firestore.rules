@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function role() {
+      return signedIn() && userDoc().exists() ? userDoc().data.role : null;
+    }
+
+    function isAdmin() {
+      return role() == "admin";
+    }
+
+    function isDoctor() {
+      return role() == "doctor" || isAdmin();
+    }
+
+    function isReceptionist() {
+      return role() == "receptionist";
+    }
+
+    function canManagePatients() {
+      return isDoctor() || isReceptionist();
+    }
+
+    function canManagePayments() {
+      return isDoctor() || isReceptionist();
+    }
+
+    function canManageAppointments() {
+      return isDoctor() || isReceptionist();
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update, delete: if isAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && canManagePatients();
+      allow delete: if signedIn() && isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && canManageAppointments();
+    }
+
+    match /visits/{visitId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && isDoctor();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn() && canManagePayments();
+    }
+  }
+}

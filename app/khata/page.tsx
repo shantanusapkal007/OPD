@@ -12,14 +12,16 @@ import type { Patient } from "@/lib/types"
 export default function KhataBookPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     async function fetchKhata() {
       try {
         const data = await getKhataPatients()
         setPatients(data)
+        setError("")
       } catch (e) {
-        console.error("Failed to load khata book", e)
+        setError("Failed to load khata book.")
       } finally {
         setLoading(false)
       }
@@ -70,6 +72,8 @@ export default function KhataBookPage() {
           </CardContent>
         </Card>
       </div>
+
+      {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">

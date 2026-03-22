@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, startTransition } from "react"
 import { IndianRupee, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Modal } from "@/components/ui/modal"
+import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { formatCurrency } from "@/lib/utils"
 import { getPayments, addPayment, getPaymentStats } from "@/services/payment.service"
 import { searchPatients } from "@/services/patient.service"
@@ -16,10 +18,18 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [stats, setStats] = useState({ total: 0, count: 0, pending: 0 })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   const [patientSearch, setPatientSearch] = useState("")
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
+
+  const resetPaymentState = () => {
+    setSelectedPatient(null)
+    setPatientSearch("")
+    setPatientResults([])
+  }
 
   const fetchPayments = async () => {
     setLoading(true)
@@ -28,8 +38,9 @@ export default function PaymentsPage() {
       setPayments(data)
       const st = await getPaymentStats()
       setStats(st)
+      setError("")
     } catch (e) {
-      console.error(e)
+      setError("Failed to load payments.")
     } finally {
       setLoading(false)
     }
@@ -38,12 +49,24 @@ export default function PaymentsPage() {
   useEffect(() => { fetchPayments() }, [])
 
   useEffect(() => {
-    if (patientSearch.length >= 2) {
-      searchPatients(patientSearch).then(setPatientResults)
+    let active = true
+    if (debouncedPatientSearch.length >= 2) {
+      searchPatients(debouncedPatientSearch, 8).then((results) => {
+        if (active) {
+          startTransition(() => {
+            setPatientResults(results)
+          })
+        }
+      })
     } else {
-      setPatientResults([])
+      startTransition(() => {
+        setPatientResults([])
+      })
     }
-  }, [patientSearch])
+    return () => {
+      active = false
+    }
+  }, [debouncedPatientSearch])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -51,21 +74,26 @@ export default function PaymentsPage() {
     setIsSaving(true)
     const fd = new FormData(e.currentTarget)
     try {
+      const amount = parseInt(fd.get("amount") as string)
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Enter a valid payment amount.")
+      }
+
       await addPayment({
         patientId: selectedPatient.id!,
         patientName: selectedPatient.fullName,
-        amount: parseInt(fd.get("amount") as string),
+        amount,
         paymentMethod: fd.get("method") as PaymentMethod,
         status: "paid" as PaymentStatus,
         description: fd.get("description") as string || "",
         date: new Date().toISOString().split("T")[0],
       })
       setIsPaymentModalOpen(false)
-      setSelectedPatient(null)
-      setPatientSearch("")
+      resetPaymentState()
+      e.currentTarget.reset()
       fetchPayments()
-    } catch (e) {
-      alert("Failed to record payment.")
+    } catch (e: any) {
+      alert(e.message || "Failed to record payment.")
     } finally {
       setIsSaving(false)
     }
@@ -85,13 +113,13 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <Modal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} title="Record Payment">
-        <form className="space-y-4" onSubmit={handleSave}>
+      <Modal isOpen={isPaymentModalOpen} onClose={() => { setIsPaymentModalOpen(false); resetPaymentState() }} title="Record Payment">
+        <form className="space-y-4" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Patient Name</label>
             <input type="text" value={selectedPatient ? selectedPatient.fullName : patientSearch}
               onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null) }}
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient..." />
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient..." {...FORM_FIELD_PROPS} />
             {patientResults.length > 0 && !selectedPatient && (
               <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white shadow-lg">
                 {patientResults.map(p => (
@@ -104,11 +132,11 @@ export default function PaymentsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Amount (Rs.)</label>
-              <input required name="amount" type="number" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="500" />
+              <input required name="amount" type="number" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="500" {...FORM_FIELD_PROPS} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Mode</label>
-              <select name="method" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select name="method" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS}>
                 <option value="upi">UPI</option>
                 <option value="cash">Cash</option>
                 <option value="card">Card</option>
@@ -117,10 +145,10 @@ export default function PaymentsPage() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Description</label>
-            <input name="description" type="text" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Consultation fee" />
+            <input name="description" type="text" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Consultation fee" {...FORM_FIELD_PROPS} />
           </div>
           <div className="pt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsPaymentModalOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setIsPaymentModalOpen(false); resetPaymentState() }} disabled={isSaving}>Cancel</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Recording..." : "Record Payment"}</Button>
           </div>
         </form>
@@ -161,6 +189,8 @@ export default function PaymentsPage() {
       </CardContent>
         </Card>
       </div>
+
+      {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (

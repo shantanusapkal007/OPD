@@ -1,62 +1,227 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  getDocs, getDoc, query, orderBy, where, Timestamp, limit, increment
+  getDocs, getDoc, query, orderBy, Timestamp, increment, where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Patient } from "@/lib/types";
+import type { Patient, TreatmentType } from "@/lib/types";
 
 const COL = "patients";
+let patientCache: Patient[] | null = null;
+let patientCachePromise: Promise<Patient[]> | null = null;
+let patientSearchIndex:
+  | Array<{
+      patient: Patient;
+      caseNumber: string;
+      fullName: string;
+      mobileNumber: string;
+    }>
+  | null = null;
+
+function mapPatient(snapshot: { id: string; data: () => unknown }) {
+  const data = snapshot.data() as Record<string, unknown>;
+  return { id: snapshot.id, ...data } as Patient;
+}
+
+function invalidatePatientCache() {
+  patientCache = null;
+  patientCachePromise = null;
+  patientSearchIndex = null;
+}
+
+export function clearPatientCache() {
+  invalidatePatientCache();
+}
+
+function buildPatientSearchIndex(patients: Patient[]) {
+  patientSearchIndex = patients.map((patient) => ({
+    patient,
+    caseNumber: patient.caseNumber.toLowerCase(),
+    fullName: patient.fullName.toLowerCase(),
+    mobileNumber: patient.mobileNumber,
+  }));
+}
+
+function cleanText(value?: string | null) {
+  return value?.trim().replace(/\s+/g, " ") ?? "";
+}
+
+function cleanPhone(value?: string | null) {
+  return value?.trim() ?? "";
+}
+
+function normalizeCaseNumber(value?: string | null) {
+  return value?.trim().toUpperCase() ?? "";
+}
+
+function validateTreatmentType(value?: TreatmentType | string | null) {
+  return value === "Allopathic" || value === "Homeopathic";
+}
+
+async function assertUniqueCaseNumber(caseNumber: string, excludeId?: string) {
+  const normalized = normalizeCaseNumber(caseNumber);
+  const patients = await getPatients();
+  const duplicate = patients.find(
+    (patient) => normalizeCaseNumber(patient.caseNumber) === normalized && patient.id !== excludeId
+  );
+
+  if (duplicate) {
+    throw new Error("Case number already exists.");
+  }
+}
+
+function normalizePatientData<T extends Partial<Patient>>(data: T) {
+  const nextData: Partial<Patient> = { ...data };
+
+  if ("caseNumber" in data) nextData.caseNumber = normalizeCaseNumber(data.caseNumber);
+  if ("fullName" in data) nextData.fullName = cleanText(data.fullName);
+  if ("mobileNumber" in data) nextData.mobileNumber = cleanPhone(data.mobileNumber);
+  if ("alternateMobile" in data) nextData.alternateMobile = cleanPhone(data.alternateMobile);
+  if ("email" in data) nextData.email = cleanText(data.email);
+  if ("occupation" in data) nextData.occupation = cleanText(data.occupation);
+  if ("maritalStatus" in data) nextData.maritalStatus = cleanText(data.maritalStatus);
+  if ("allergies" in data) nextData.allergies = cleanText(data.allergies);
+  if ("chronicDiseases" in data) nextData.chronicDiseases = cleanText(data.chronicDiseases);
+  if ("emergencyContact" in data) nextData.emergencyContact = cleanPhone(data.emergencyContact);
+  if ("lmp" in data) nextData.lmp = cleanText(data.lmp);
+  if ("notes" in data) nextData.notes = cleanText(data.notes);
+
+  if ("address" in data && data.address) {
+    nextData.address = {
+      line1: cleanText(data.address.line1),
+      city: cleanText(data.address.city),
+      state: cleanText(data.address.state),
+      pincode: cleanText(data.address.pincode),
+    };
+  }
+
+  return nextData as T;
+}
+
+async function validatePatientData(data: Partial<Patient>, excludeId?: string) {
+  if ("caseNumber" in data && !normalizeCaseNumber(data.caseNumber)) {
+    throw new Error("Case number is required.");
+  }
+
+  if ("fullName" in data && !cleanText(data.fullName)) {
+    throw new Error("Patient name is required.");
+  }
+
+  if ("mobileNumber" in data && !cleanPhone(data.mobileNumber)) {
+    throw new Error("Mobile number is required.");
+  }
+
+  if ("treatmentType" in data && !validateTreatmentType(data.treatmentType)) {
+    throw new Error("Treatment type is required.");
+  }
+
+  if ("age" in data) {
+    if (!Number.isFinite(data.age) || (data.age ?? 0) < 0) {
+      throw new Error("Age must be a valid number.");
+    }
+  }
+
+  if ("caseNumber" in data && data.caseNumber) {
+    await assertUniqueCaseNumber(data.caseNumber, excludeId);
+  }
+}
 
 export async function getPatients(): Promise<Patient[]> {
-  const q = query(collection(db, COL), orderBy("createdAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Patient));
+  if (patientCache) return patientCache;
+  if (patientCachePromise) return patientCachePromise;
+
+  patientCachePromise = (async () => {
+    try {
+      const q = query(collection(db, COL), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const patients = snap.docs.map(mapPatient);
+      patientCache = patients;
+      buildPatientSearchIndex(patients);
+      return patients;
+    } finally {
+      patientCachePromise = null;
+    }
+  })();
+
+  return patientCachePromise;
 }
 
 export async function getPatient(id: string): Promise<Patient | null> {
+  const cachedPatient = patientCache?.find((patient) => patient.id === id);
+  if (cachedPatient) return cachedPatient;
+
   const snap = await getDoc(doc(db, COL, id));
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Patient) : null;
+  return snap.exists() ? mapPatient(snap) : null;
 }
 
-export async function searchPatients(term: string): Promise<Patient[]> {
+export async function searchPatients(term: string, maxResults?: number): Promise<Patient[]> {
   // Firestore does not support full-text search natively.
   // We fetch all patients and filter client-side for simplicity.
   // For production at scale, use Algolia / Typesense / Meilisearch.
-  const all = await getPatients();
-  const lower = term.toLowerCase();
-  return all.filter(
-    p =>
-      p.fullName.toLowerCase().includes(lower) ||
-      p.mobileNumber.includes(term) ||
-      p.caseNumber.toLowerCase().includes(lower)
+  const trimmed = term.trim();
+  if (!trimmed) return getPatients();
+
+  await getPatients();
+
+  const lower = trimmed.toLowerCase();
+  const results = (patientSearchIndex ?? []).filter(
+    (entry) =>
+      entry.fullName.includes(lower) ||
+      entry.mobileNumber.includes(trimmed) ||
+      entry.caseNumber.includes(lower)
   );
+
+  const patients = results.map((entry) => entry.patient);
+  return typeof maxResults === "number" ? patients.slice(0, maxResults) : patients;
 }
 
 export async function addPatient(data: Omit<Patient, "id" | "createdAt" | "updatedAt">): Promise<string> {
+  const normalized = normalizePatientData(data);
+  await validatePatientData(normalized);
+
   const ref = await addDoc(collection(db, COL), {
-    ...data,
+    ...normalized,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
+  invalidatePatientCache();
   return ref.id;
 }
 
 export async function updatePatient(id: string, data: Partial<Patient>): Promise<void> {
-  await updateDoc(doc(db, COL, id), { ...data, updatedAt: Timestamp.now() });
+  const normalized = normalizePatientData(data);
+  await validatePatientData(normalized, id);
+  await updateDoc(doc(db, COL, id), { ...normalized, updatedAt: Timestamp.now() });
+  invalidatePatientCache();
 }
 
 export async function deletePatient(id: string): Promise<void> {
   await deleteDoc(doc(db, COL, id));
+  invalidatePatientCache();
+}
+
+export async function getPatientLinkedRecordCounts(id: string) {
+  const [appointmentsSnap, visitsSnap, paymentsSnap] = await Promise.all([
+    getDocs(query(collection(db, "appointments"), where("patientId", "==", id))),
+    getDocs(query(collection(db, "visits"), where("patientId", "==", id))),
+    getDocs(query(collection(db, "payments"), where("patientId", "==", id))),
+  ]);
+
+  return {
+    appointments: appointmentsSnap.size,
+    visits: visitsSnap.size,
+    payments: paymentsSnap.size,
+  };
 }
 
 export async function getPatientCount(): Promise<number> {
-  const snap = await getDocs(collection(db, COL));
-  return snap.size;
+  const patients = await getPatients();
+  return patients.length;
 }
 
 export async function updatePatientBalance(id: string, amount: number): Promise<void> {
   // Uses atomic increment to avoid write race conditions
   await updateDoc(doc(db, COL, id), { khataBalance: increment(amount) });
+  invalidatePatientCache();
 }
 
 export async function getKhataPatients(): Promise<Patient[]> {

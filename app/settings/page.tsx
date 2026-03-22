@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Settings, Building2, Clock, MessageSquare, Users } from "lucide-react"
+import { Building2, Clock, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 
 export default function SettingsPage() {
   const [savingForm, setSavingForm] = useState<string | null>(null)
@@ -14,7 +15,7 @@ export default function SettingsPage() {
     setTimeout(() => {
       setSavingForm(null)
       alert("Settings saved successfully!")
-    }, 1000)
+    }, 150)
   }
 
   return (
@@ -33,27 +34,27 @@ export default function SettingsPage() {
             <CardTitle className="text-lg">Clinic Profile</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={(e) => handleSave(e, 'profile')}>
+            <form onSubmit={(e) => handleSave(e, 'profile')} {...FORM_PROPS}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Clinic Name</label>
-                  <input type="text" defaultValue="City Care Clinic" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" defaultValue="City Care Clinic" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Doctor Name</label>
-                  <input type="text" defaultValue="Dr. Smith" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" defaultValue="Dr. Smith" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Phone</label>
-                  <input type="text" defaultValue="+91 9876543210" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="text" defaultValue="+91 9876543210" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Email</label>
-                  <input type="email" defaultValue="contact@citycare.com" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="email" defaultValue="contact@citycare.com" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-sm font-medium text-slate-700">Address</label>
-                  <textarea rows={3} defaultValue="123 Health Avenue, Medical District, Mumbai" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+                  <textarea rows={3} defaultValue="123 Health Avenue, Medical District, Mumbai" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
               <div className="mt-6 flex justify-end">
@@ -71,11 +72,11 @@ export default function SettingsPage() {
             <CardTitle className="text-lg">Appointment Slots</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={(e) => handleSave(e, 'slots')}>
+            <form onSubmit={(e) => handleSave(e, 'slots')} {...FORM_PROPS}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Duration (mins)</label>
-                  <select defaultValue="30" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select defaultValue="30" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS}>
                     <option value="15">15</option>
                     <option value="30">30</option>
                     <option value="45">45</option>
@@ -84,11 +85,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Start Time</label>
-                  <input type="time" defaultValue="09:00" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="time" defaultValue="09:00" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">End Time</label>
-                  <input type="time" defaultValue="18:00" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="time" defaultValue="18:00" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
               <div className="mt-6 flex justify-end">
@@ -113,11 +114,11 @@ export default function SettingsPage() {
               </div>
               <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-medium">Disconnected</span>
             </div>
-            <form onSubmit={(e) => handleSave(e, 'whatsapp')}>
+            <form onSubmit={(e) => handleSave(e, 'whatsapp')} {...FORM_PROPS}>
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Provider</label>
-                  <select className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS}>
                     <option>Twilio</option>
                     <option>WATI</option>
                     <option>Meta Direct</option>
@@ -125,7 +126,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">API Key / Access Token</label>
-                  <input type="password" placeholder="Enter API Key" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input type="password" placeholder="Enter API Key" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">

@@ -1,8 +1,8 @@
 import {
-  collection, doc, addDoc, getDocs, query, where, Timestamp,
+  collection, doc, getDocs, query, where, Timestamp, runTransaction, increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { updatePatientBalance } from "@/services/patient.service";
+import { clearPatientCache } from "@/services/patient.service";
 import type { Visit } from "@/lib/types";
 
 const COL = "visits";
@@ -21,17 +21,47 @@ export async function getVisitsByPatient(patientId: string): Promise<Visit[]> {
 }
 
 export async function addVisit(data: Omit<Visit, "id" | "createdAt">): Promise<string> {
-  const ref = await addDoc(collection(db, COL), {
-    ...data,
-    createdAt: Timestamp.now(),
-  });
-  
-  // Deduct the standard bill charge from the patient's Khata (Ledger)
-  if (data.totalBill) {
-    await updatePatientBalance(data.patientId, -data.totalBill);
+  const patientName = data.patientName?.trim();
+  const complaints = data.complaints?.trim();
+  const diagnosis = data.diagnosis?.trim();
+  const totalBill = Number(data.totalBill || 0);
+
+  if (!data.patientId || !patientName || !complaints || !diagnosis) {
+    throw new Error("Patient, complaints, and diagnosis are required.");
   }
-  
-  return ref.id;
+
+  if (!Number.isFinite(totalBill) || totalBill < 0) {
+    throw new Error("Total bill must be a valid amount.");
+  }
+
+  const visitRef = doc(collection(db, COL));
+  const patientRef = doc(db, "patients", data.patientId);
+
+  await runTransaction(db, async (transaction) => {
+    const patientSnap = await transaction.get(patientRef);
+    if (!patientSnap.exists()) {
+      throw new Error("Patient not found.");
+    }
+
+    transaction.set(visitRef, {
+      ...data,
+      patientName,
+      complaints,
+      diagnosis,
+      totalBill,
+      createdAt: Timestamp.now(),
+    });
+
+    if (totalBill > 0) {
+      transaction.update(patientRef, {
+        khataBalance: increment(-totalBill),
+        updatedAt: Timestamp.now(),
+      });
+    }
+  });
+
+  clearPatientCache();
+  return visitRef.id;
 }
 
 export async function getUpcomingFollowUps(): Promise<Visit[]> {

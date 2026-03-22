@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, startTransition } from "react"
 import { Plus, ChevronLeft, ChevronRight, CheckCircle2, Clock3, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
+import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useRouter } from "next/navigation"
 import { getAppointmentsByDate, addAppointment, updateAppointmentStatus } from "@/services/appointment.service"
 import { searchPatients } from "@/services/patient.service"
@@ -14,35 +16,57 @@ import type { Appointment, Patient } from "@/lib/types"
 export default function AppointmentsPage() {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [patientSearch, setPatientSearch] = useState("")
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const router = useRouter()
 
-  const fetchAppointments = async () => {
+  const resetBookingState = () => {
+    setSelectedPatient(null)
+    setPatientSearch("")
+    setPatientResults([])
+  }
+
+  const fetchAppointments = useCallback(async () => {
     setLoading(true)
     try {
       const data = await getAppointmentsByDate(selectedDate)
       setAppointments(data)
+      setError("")
     } catch (e) {
-      console.error(e)
+      setError("Failed to load appointments.")
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedDate])
 
-  useEffect(() => { fetchAppointments() }, [selectedDate])
+  useEffect(() => { fetchAppointments() }, [fetchAppointments])
 
   useEffect(() => {
-    if (patientSearch.length >= 2) {
-      searchPatients(patientSearch).then(setPatientResults)
+    let active = true
+    if (debouncedPatientSearch.length >= 2) {
+      searchPatients(debouncedPatientSearch, 8).then((results) => {
+        if (active) {
+          startTransition(() => {
+            setPatientResults(results)
+          })
+        }
+      })
     } else {
-      setPatientResults([])
+      startTransition(() => {
+        setPatientResults([])
+      })
     }
-  }, [patientSearch])
+    return () => {
+      active = false
+    }
+  }, [debouncedPatientSearch])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -50,6 +74,10 @@ export default function AppointmentsPage() {
     setIsSaving(true)
     const fd = new FormData(e.currentTarget)
     try {
+      if (!(fd.get("date") as string) || !(fd.get("time") as string)) {
+        throw new Error("Date and time are required.");
+      }
+
       await addAppointment({
         patientId: selectedPatient.id!,
         patientName: selectedPatient.fullName,
@@ -60,11 +88,11 @@ export default function AppointmentsPage() {
         notes: fd.get("notes") as string || "",
       })
       setIsBookModalOpen(false)
-      setSelectedPatient(null)
-      setPatientSearch("")
+      resetBookingState()
+      e.currentTarget.reset()
       fetchAppointments()
-    } catch (e) {
-      alert("Failed to book appointment.")
+    } catch (e: any) {
+      alert(e.message || "Failed to book appointment.")
     } finally {
       setIsSaving(false)
     }
@@ -93,13 +121,13 @@ export default function AppointmentsPage() {
         </Button>
       </div>
 
-      <Modal isOpen={isBookModalOpen} onClose={() => setIsBookModalOpen(false)} title="Book Appointment">
-        <form className="space-y-4" onSubmit={handleSave}>
+      <Modal isOpen={isBookModalOpen} onClose={() => { setIsBookModalOpen(false); resetBookingState() }} title="Book Appointment">
+        <form className="space-y-4" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Patient</label>
             <input type="text" value={selectedPatient ? selectedPatient.fullName : patientSearch}
               onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null) }}
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient by name or mobile..." />
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient by name or mobile..." {...FORM_FIELD_PROPS} />
             {patientResults.length > 0 && !selectedPatient && (
               <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white shadow-lg">
                 {patientResults.map(p => (
@@ -112,16 +140,16 @@ export default function AppointmentsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Date</label>
-              <input required name="date" type="date" defaultValue={selectedDate} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input required name="date" type="date" defaultValue={selectedDate} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Time</label>
-              <input required name="time" type="time" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input required name="time" type="time" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS} />
             </div>
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Type</label>
-            <select name="type" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select name="type" className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" {...FORM_FIELD_PROPS}>
               <option value="New Consultation">New Consultation</option>
               <option value="Follow-up">Follow-up</option>
               <option value="Routine Checkup">Routine Checkup</option>
@@ -129,10 +157,10 @@ export default function AppointmentsPage() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Notes (Optional)</label>
-            <textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Reason for visit..." />
+            <textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Reason for visit..." {...FORM_FIELD_PROPS} />
           </div>
           <div className="pt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsBookModalOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setIsBookModalOpen(false); resetBookingState() }} disabled={isSaving}>Cancel</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Booking..." : "Book Appointment"}</Button>
           </div>
         </form>
@@ -168,6 +196,8 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
+      {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="hidden lg:grid grid-cols-12 gap-4 p-4 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
           <div className="col-span-2">Time</div>
@@ -189,10 +219,17 @@ export default function AppointmentsPage() {
                 <Badge variant={apt.type === "Follow-up" ? "followup" : "new"}>{apt.type}</Badge>
               </div>
               <div className="col-span-3 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                <select value={apt.status} onChange={async (e) => {
-                  await updateAppointmentStatus(apt.id!, e.target.value as any)
-                  fetchAppointments()
-                }} className="h-8 px-2 rounded border border-slate-200 text-xs font-medium">
+                <select value={apt.status} disabled={updatingStatusId === apt.id} onChange={async (e) => {
+                  try {
+                    setUpdatingStatusId(apt.id!)
+                    await updateAppointmentStatus(apt.id!, e.target.value as any)
+                    await fetchAppointments()
+                  } catch (error: any) {
+                    alert(error.message || "Failed to update appointment status.")
+                  } finally {
+                    setUpdatingStatusId(null)
+                  }
+                }} className="h-8 px-2 rounded border border-slate-200 text-xs font-medium" {...FORM_FIELD_PROPS}>
                   <option value="scheduled">Pending</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>

@@ -4,50 +4,55 @@ import { useState, useRef } from "react"
 import { Download, Upload, FileSpreadsheet, Users, Calendar, Pill, IndianRupee, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { getTreatmentType } from "@/lib/utils"
 import { getPatients, addPatient } from "@/services/patient.service"
 import { getVisits } from "@/services/visit.service"
 import { getPayments } from "@/services/payment.service"
 import { getAppointments } from "@/services/appointment.service"
 
-// ─── CSV Helpers ─────────────────────────────────────────
-
 function arrayToCSV(headers: string[], rows: string[][]): string {
   const escape = (val: string) => `"${(val || "").replace(/"/g, '""')}"`
   const headerLine = headers.map(escape).join(",")
-  const dataLines = rows.map(row => row.map(escape).join(","))
+  const dataLines = rows.map((row) => row.map(escape).join(","))
   return [headerLine, ...dataLines].join("\n")
 }
 
 function downloadCSV(filename: string, csv: string) {
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.click()
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  link.click()
   URL.revokeObjectURL(url)
 }
 
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
-  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  const lines = text.split(/\r?\n/).filter((line) => line.trim())
   if (lines.length === 0) return { headers: [], rows: [] }
 
   const parseLine = (line: string): string[] => {
     const result: string[] = []
     let current = ""
     let inQuotes = false
+
     for (let i = 0; i < line.length; i++) {
       const ch = line[i]
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
-        else inQuotes = !inQuotes
-      } else if (ch === ',' && !inQuotes) {
+      if (ch === "\"") {
+        if (inQuotes && line[i + 1] === "\"") {
+          current += "\""
+          i++
+        } else {
+          inQuotes = !inQuotes
+        }
+      } else if (ch === "," && !inQuotes) {
         result.push(current.trim())
         current = ""
       } else {
         current += ch
       }
     }
+
     result.push(current.trim())
     return result
   }
@@ -57,8 +62,6 @@ function parseCSV(text: string): { headers: string[]; rows: string[][] } {
   return { headers, rows }
 }
 
-// ─── Page Component ─────────────────────────────────────
-
 export default function DataPage() {
   const [exporting, setExporting] = useState("")
   const [importStatus, setImportStatus] = useState<{ success: number; failed: number; total: number } | null>(null)
@@ -66,23 +69,42 @@ export default function DataPage() {
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // ─── Export Functions ───
-
   const exportPatients = async () => {
     setExporting("patients")
     try {
       const patients = await getPatients()
-      const headers = ["Case Number", "Full Name", "Mobile", "Alternate Mobile", "Gender", "Age", "DOB", "Blood Group", "Email", "Occupation", "Marital Status", "Address", "City", "State", "Pincode", "Allergies", "Chronic Diseases", "Emergency Contact", "LMP", "Cycle Days", "Khata Balance", "Notes"]
-      const rows = patients.map(p => [
-        p.caseNumber, p.fullName, p.mobileNumber, p.alternateMobile || "", p.gender, String(p.age),
-        p.dateOfBirth || "", p.bloodGroup || "", p.email || "", p.occupation || "", p.maritalStatus || "",
-        p.address?.line1 || "", p.address?.city || "", p.address?.state || "", p.address?.pincode || "",
-        p.allergies || "", p.chronicDiseases || "", p.emergencyContact || "",
-        p.lmp || "", String(p.menstrualCycleDays || ""), String(p.khataBalance || 0), p.notes || ""
+      const headers = ["Case Number", "Treatment Type", "Full Name", "Mobile", "Alternate Mobile", "Gender", "Age", "DOB", "Blood Group", "Email", "Occupation", "Marital Status", "Address", "City", "State", "Pincode", "Allergies", "Chronic Diseases", "Emergency Contact", "LMP", "Cycle Days", "Khata Balance", "Notes"]
+      const rows = patients.map((patient) => [
+        patient.caseNumber,
+        getTreatmentType(patient.caseNumber, patient.treatmentType),
+        patient.fullName,
+        patient.mobileNumber,
+        patient.alternateMobile || "",
+        patient.gender,
+        String(patient.age),
+        patient.dateOfBirth || "",
+        patient.bloodGroup || "",
+        patient.email || "",
+        patient.occupation || "",
+        patient.maritalStatus || "",
+        patient.address?.line1 || "",
+        patient.address?.city || "",
+        patient.address?.state || "",
+        patient.address?.pincode || "",
+        patient.allergies || "",
+        patient.chronicDiseases || "",
+        patient.emergencyContact || "",
+        patient.lmp || "",
+        String(patient.menstrualCycleDays || ""),
+        String(patient.khataBalance || 0),
+        patient.notes || "",
       ])
       downloadCSV(`patients_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
-    } catch (e) { alert("Export failed") }
-    finally { setExporting("") }
+    } catch (e) {
+      alert("Export failed")
+    } finally {
+      setExporting("")
+    }
   }
 
   const exportVisits = async () => {
@@ -90,19 +112,34 @@ export default function DataPage() {
     try {
       const visits = await getVisits()
       const headers = ["Date", "Patient Name", "Complaints", "HPI", "Examination", "Diagnosis", "Prescription", "BP", "Pulse", "Temp", "SpO2", "Weight", "Height", "Resp Rate", "Lab Tests", "Investigations", "Advice", "Referral", "Follow-up", "Bill"]
-      const rows = visits.map(v => [
-        v.createdAt?.toDate?.()?.toLocaleDateString() || "", v.patientName, v.complaints, v.historyOfPresentIllness || "",
-        v.examinationFindings || "", v.diagnosis,
-        v.prescriptions?.map(p => p.name).join("; ") || "",
-        v.vitals?.bp || "", String(v.vitals?.pulse || ""), String(v.vitals?.temperature || ""),
-        String(v.vitals?.spo2 || ""), String(v.vitals?.weight || ""), String(v.vitals?.height || ""),
-        String(v.vitals?.respiratoryRate || ""),
-        v.labTests || "", v.investigationsAdvised || "", v.advice || "", v.referral || "",
-        v.followUpDate || "", String(v.totalBill || 0)
+      const rows = visits.map((visit) => [
+        visit.createdAt?.toDate?.()?.toLocaleDateString() || "",
+        visit.patientName,
+        visit.complaints,
+        visit.historyOfPresentIllness || "",
+        visit.examinationFindings || "",
+        visit.diagnosis,
+        visit.prescriptions?.map((prescription) => prescription.name).join("; ") || "",
+        visit.vitals?.bp || "",
+        String(visit.vitals?.pulse || ""),
+        String(visit.vitals?.temperature || ""),
+        String(visit.vitals?.spo2 || ""),
+        String(visit.vitals?.weight || ""),
+        String(visit.vitals?.height || ""),
+        String(visit.vitals?.respiratoryRate || ""),
+        visit.labTests || "",
+        visit.investigationsAdvised || "",
+        visit.advice || "",
+        visit.referral || "",
+        visit.followUpDate || "",
+        String(visit.totalBill || 0),
       ])
       downloadCSV(`visits_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
-    } catch (e) { alert("Export failed") }
-    finally { setExporting("") }
+    } catch (e) {
+      alert("Export failed")
+    } finally {
+      setExporting("")
+    }
   }
 
   const exportPayments = async () => {
@@ -110,35 +147,52 @@ export default function DataPage() {
     try {
       const payments = await getPayments()
       const headers = ["Date", "Patient Name", "Amount", "Method", "Status", "Description", "Transaction ID"]
-      const rows = payments.map(p => [
-        p.date, p.patientName, String(p.amount), p.paymentMethod, p.status, p.description || "", p.transactionId || ""
+      const rows = payments.map((payment) => [
+        payment.date,
+        payment.patientName,
+        String(payment.amount),
+        payment.paymentMethod,
+        payment.status,
+        payment.description || "",
+        payment.transactionId || "",
       ])
       downloadCSV(`payments_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
-    } catch (e) { alert("Export failed") }
-    finally { setExporting("") }
+    } catch (e) {
+      alert("Export failed")
+    } finally {
+      setExporting("")
+    }
   }
 
   const exportAppointments = async () => {
     setExporting("appointments")
     try {
-      const apts = await getAppointments()
+      const appointments = await getAppointments()
       const headers = ["Date", "Time", "Patient Name", "Type", "Status", "Reason", "Notes"]
-      const rows = apts.map(a => [
-        a.appointmentDate, a.timeSlot, a.patientName, a.type, a.status, a.reason || "", a.notes || ""
+      const rows = appointments.map((appointment) => [
+        appointment.appointmentDate,
+        appointment.timeSlot,
+        appointment.patientName,
+        appointment.type,
+        appointment.status,
+        appointment.reason || "",
+        appointment.notes || "",
       ])
       downloadCSV(`appointments_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
-    } catch (e) { alert("Export failed") }
-    finally { setExporting("") }
+    } catch (e) {
+      alert("Export failed")
+    } finally {
+      setExporting("")
+    }
   }
-
-  // ─── Import Functions ───
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string
+    reader.onload = (event) => {
+      const text = event.target?.result as string
       const parsed = parseCSV(text)
       setImportPreview(parsed)
       setImportStatus(null)
@@ -148,16 +202,23 @@ export default function DataPage() {
 
   const runImport = async () => {
     if (!importPreview) return
+
     setImporting(true)
-    let success = 0, failed = 0
+    let success = 0
+    let failed = 0
     const { headers, rows } = importPreview
-    const idx = (name: string) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()))
+    const idx = (name: string) => headers.findIndex((header) => header.toLowerCase().includes(name.toLowerCase()))
 
     for (const row of rows) {
       try {
-        const get = (name: string) => { const i = idx(name); return i >= 0 ? row[i] || "" : "" }
+        const get = (name: string) => {
+          const index = idx(name)
+          return index >= 0 ? row[index] || "" : ""
+        }
+        const importedTreatmentType = get("treatment")
         const patientData: any = {
           caseNumber: get("case"),
+          treatmentType: importedTreatmentType === "Homeopathic" || importedTreatmentType === "Allopathic" ? importedTreatmentType : getTreatmentType(get("case")),
           fullName: get("name") || get("full name"),
           mobileNumber: get("mobile") || get("phone"),
           gender: (get("gender") || "Male") as "Male" | "Female" | "Other",
@@ -179,13 +240,19 @@ export default function DataPage() {
             pincode: get("pin"),
           },
         }
-        if (!patientData.fullName && !patientData.caseNumber) { failed++; continue }
+
+        if (!patientData.fullName && !patientData.caseNumber) {
+          failed++
+          continue
+        }
+
         await addPatient(patientData)
         success++
       } catch {
         failed++
       }
     }
+
     setImportStatus({ success, failed, total: rows.length })
     setImporting(false)
     setImportPreview(null)
@@ -207,13 +274,12 @@ export default function DataPage() {
         <p className="text-sm text-slate-500">Import and export your clinic data in CSV format</p>
       </div>
 
-      {/* Export Section */}
       <div>
         <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <Download className="w-5 h-5 text-slate-500" /> Export Data
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {exportCards.map(card => (
+          {exportCards.map((card) => (
             <Card key={card.key} className="hover:shadow-md transition-shadow cursor-pointer" onClick={card.fn}>
               <CardContent className="p-5 flex flex-col items-center text-center gap-3">
                 <div className={`w-12 h-12 rounded-xl bg-${card.color}-50 flex items-center justify-center`}>
@@ -236,7 +302,6 @@ export default function DataPage() {
         </div>
       </div>
 
-      {/* Import Section */}
       <div>
         <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <Upload className="w-5 h-5 text-slate-500" /> Import Patients
@@ -246,11 +311,11 @@ export default function DataPage() {
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="flex-1">
               <p className="text-sm text-slate-600 mb-3">
-                Upload a CSV file to bulk-import patient records. The CSV should have columns like: 
+                Upload a CSV file to bulk-import patient records. The CSV should have columns like:
                 <span className="font-medium text-slate-800"> Case Number, Full Name, Mobile, Gender, Age, Blood Group, Email, City</span>, etc.
               </p>
               <p className="text-xs text-slate-400 mb-4">
-                Column headers are matched flexibly — "name" matches "Full Name", "phone" matches "Mobile Number", etc.
+                Column headers are matched flexibly - &quot;name&quot; matches &quot;Full Name&quot;, &quot;phone&quot; matches &quot;Mobile Number&quot;, etc.
               </p>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFileSelect} />
               <Button variant="outline" onClick={() => fileRef.current?.click()}>
@@ -259,7 +324,6 @@ export default function DataPage() {
             </div>
           </div>
 
-          {/* Import Preview */}
           {importPreview && (
             <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -272,13 +336,13 @@ export default function DataPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase">
                     <tr>
-                      {importPreview.headers.map((h, i) => <th key={i} className="px-3 py-2 text-left whitespace-nowrap">{h}</th>)}
+                      {importPreview.headers.map((header, index) => <th key={index} className="px-3 py-2 text-left whitespace-nowrap">{header}</th>)}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {importPreview.rows.slice(0, 10).map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50">
-                        {row.map((cell, j) => <td key={j} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[150px] truncate">{cell}</td>)}
+                    {importPreview.rows.slice(0, 10).map((row, rowIndex) => (
+                      <tr key={rowIndex} className="hover:bg-slate-50">
+                        {row.map((cell, cellIndex) => <td key={cellIndex} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[150px] truncate">{cell}</td>)}
                       </tr>
                     ))}
                     {importPreview.rows.length > 10 && (
@@ -290,9 +354,8 @@ export default function DataPage() {
             </div>
           )}
 
-          {/* Import Status */}
           {importStatus && (
-            <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${importStatus.failed === 0 ? 'bg-green-50 text-green-800' : 'bg-yellow-50 text-yellow-800'}`}>
+            <div className={`mt-4 p-4 rounded-lg flex items-center gap-3 ${importStatus.failed === 0 ? "bg-green-50 text-green-800" : "bg-yellow-50 text-yellow-800"}`}>
               {importStatus.failed === 0 ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5 text-yellow-600" />}
               <span className="text-sm font-medium">
                 Imported {importStatus.success} of {importStatus.total} patients successfully.

@@ -6,7 +6,17 @@ export async function getOrCreateUser(uid: string, name: string, email: string, 
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
   if (snap.exists()) {
-    return snap.data() as AppUser;
+    const existing = snap.data() as Partial<AppUser>;
+    const nextUser: AppUser = {
+      userId: existing.userId || uid,
+      name: existing.name || name,
+      email: existing.email || email,
+      role: existing.role || "doctor",
+      photoURL: existing.photoURL || photoURL || "",
+      createdAt: existing.createdAt || Timestamp.now(),
+    };
+    await setDoc(ref, nextUser, { merge: true });
+    return nextUser;
   }
   // First-time sign-in → create user document with default role
   const newUser: AppUser = {

@@ -2,6 +2,7 @@ import { Timestamp } from "firebase/firestore";
 
 // ─── Users ───────────────────────────────────────────────
 export type UserRole = "admin" | "doctor" | "receptionist";
+export type TreatmentType = "Allopathic" | "Homeopathic";
 
 export interface AppUser {
   userId: string;
@@ -16,6 +17,7 @@ export interface AppUser {
 export interface Patient {
   id?: string; // Firestore document ID
   caseNumber: string;
+  treatmentType?: TreatmentType;
   fullName: string;
   mobileNumber: string;
   alternateMobile?: string;
@@ -84,6 +86,7 @@ export interface Visit {
   patientId: string;
   patientName: string;
   doctorId?: string;
+  visitImages?: string[];
   // Clinical
   complaints: string;
   historyOfPresentIllness?: string;

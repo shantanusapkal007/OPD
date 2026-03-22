@@ -1,8 +1,8 @@
 import {
-  collection, doc, addDoc, getDocs, query, where, Timestamp,
+  collection, doc, getDocs, query, where, Timestamp, runTransaction, increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { updatePatientBalance } from "@/services/patient.service";
+import { clearPatientCache } from "@/services/patient.service";
 import type { Payment } from "@/lib/types";
 
 const COL = "payments";
@@ -21,17 +21,41 @@ export async function getPaymentsByPatient(patientId: string): Promise<Payment[]
 }
 
 export async function addPayment(data: Omit<Payment, "id" | "createdAt">): Promise<string> {
-  const ref = await addDoc(collection(db, COL), {
-    ...data,
-    createdAt: Timestamp.now(),
-  });
-  
-  // Credit the paid amount to the patient's Khata Ledger ONLY for confirmed payments
-  if (data.status === "paid") {
-    await updatePatientBalance(data.patientId, data.amount);
+  const amount = Number(data.amount);
+  const patientName = data.patientName?.trim();
+  const date = data.date?.trim();
+
+  if (!data.patientId || !patientName || !date || !Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Please enter a valid payment.");
   }
 
-  return ref.id;
+  const paymentRef = doc(collection(db, COL));
+  const patientRef = doc(db, "patients", data.patientId);
+
+  await runTransaction(db, async (transaction) => {
+    const patientSnap = await transaction.get(patientRef);
+    if (!patientSnap.exists()) {
+      throw new Error("Patient not found.");
+    }
+
+    transaction.set(paymentRef, {
+      ...data,
+      amount,
+      patientName,
+      date,
+      createdAt: Timestamp.now(),
+    });
+
+    if (data.status === "paid") {
+      transaction.update(patientRef, {
+        khataBalance: increment(amount),
+        updatedAt: Timestamp.now(),
+      });
+    }
+  });
+
+  clearPatientCache();
+  return paymentRef.id;
 }
 
 export async function getTodayRevenue(): Promise<number> {

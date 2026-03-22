@@ -4,6 +4,7 @@ import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { BottomNav } from "./bottom-nav"
 import { useAuth } from "../providers/AuthProvider"
+import { canAccessPath } from "@/lib/access"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 
@@ -13,8 +14,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login') {
-      router.push('/login');
+    if (loading) return;
+
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+      return;
+    }
+
+    if (user && pathname === '/login') {
+      router.replace('/');
+      return;
+    }
+
+    if (user && !canAccessPath(user.role, pathname)) {
+      router.replace('/');
     }
   }, [user, loading, pathname, router]);
 
@@ -22,11 +35,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Loading...</div>;
   }
 
-  if (pathname === '/login') {
+  if (pathname === '/login' && !user) {
     return <>{children}</>;
   }
 
-  if (!user) return null;
+  if (!user || !canAccessPath(user.role, pathname)) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Redirecting...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

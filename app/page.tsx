@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [stats, setStats] = useState({ todayAppts: 0, pendingAppts: 0, totalPatients: 0, revenue: 0 })
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
   const [recentPatients, setRecentPatients] = useState<Patient[]>([])
@@ -47,7 +48,7 @@ export default function DashboardPage() {
         setRecentPatients(patients.slice(0, 5))
         setFollowUps(followUpRows.slice(0, 5))
       } catch (error) {
-        console.error(error)
+        setError("Failed to load dashboard data.")
       } finally {
         setLoading(false)
       }
@@ -73,6 +74,8 @@ export default function DashboardPage() {
         <StatCard icon={Users} label="Total patients" value={String(stats.totalPatients)} tone="teal" />
         <StatCard icon={IndianRupee} label="Today's revenue" value={formatCurrency(stats.revenue)} tone="green" />
       </div>
+
+      {error ? <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr,1fr]">
         <Card>
@@ -135,8 +138,8 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-sm font-medium text-slate-900">{patient.fullName}</p>
-                        <Badge variant="outline" className={getTreatmentType(patient.caseNumber) === "Homeopathic" ? "border-green-200 bg-green-50 text-green-700" : "border-blue-200 bg-blue-50 text-blue-700"}>
-                          {getTreatmentType(patient.caseNumber)}
+                        <Badge variant="outline" className={getTreatmentType(patient.caseNumber, patient.treatmentType) === "Homeopathic" ? "border-green-200 bg-green-50 text-green-700" : "border-blue-200 bg-blue-50 text-blue-700"}>
+                          {getTreatmentType(patient.caseNumber, patient.treatmentType)}
                         </Badge>
                       </div>
                       <p className="truncate text-xs text-slate-500">{patient.mobileNumber}</p>

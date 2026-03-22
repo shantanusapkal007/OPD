@@ -6,14 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
+import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
+import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { formatCurrency, getTreatmentType } from "@/lib/utils"
+import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { getPatient, updatePatient, deletePatient } from "@/services/patient.service"
+import { getPatient, updatePatient, deletePatient, getPatientLinkedRecordCounts } from "@/services/patient.service"
 import { getVisitsByPatient } from "@/services/visit.service"
 import { getPaymentsByPatient } from "@/services/payment.service"
 import { getAppointmentsByPatient } from "@/services/appointment.service"
-import type { Patient, Visit, Payment, Appointment } from "@/lib/types"
+import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/types"
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -25,12 +28,20 @@ export default function PatientDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("visits")
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editGender, setEditGender] = useState("Male")
+  const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
+
+  const resetEditFormState = (nextPatient: Patient | null = patient) => {
+    if (!nextPatient) return
+    setEditGender(nextPatient.gender)
+    setEditTreatmentType(getTreatmentType(nextPatient.caseNumber, nextPatient.treatmentType))
+  }
 
   useEffect(() => {
     async function load() {
@@ -46,9 +57,13 @@ export default function PatientDetailPage() {
         setVisits(v)
         setPayments(pay)
         setAppointments(apt)
-        if (p) setEditGender(p.gender)
+        setError("")
+        if (p) {
+          setEditGender(p.gender)
+          setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
+        }
       } catch (e) {
-        console.error(e)
+        setError("Failed to load patient details.")
       } finally {
         setLoading(false)
       }
@@ -65,6 +80,7 @@ export default function PatientDetailPage() {
     try {
       const updateData: any = {
         caseNumber: fd.get("caseNumber") as string,
+        treatmentType: fd.get("treatmentType") as TreatmentType,
         fullName: `${fd.get("firstName")} ${fd.get("lastName")}`,
         mobileNumber: fd.get("mobile") as string,
         alternateMobile: fd.get("alternateMobile") as string || "",
@@ -92,11 +108,13 @@ export default function PatientDetailPage() {
         updateData.menstrualCycleDays = parseInt(fd.get("menstrualCycleDays") as string) || null;
       } else {
         updateData.lmp = null;
+        updateData.menstrualCycleDays = null;
       }
 
       await updatePatient(patient.id, updateData)
       const updated = await getPatient(patient.id)
       setPatient(updated)
+      resetEditFormState(updated)
       setIsEditModalOpen(false)
     } catch (e: any) {
       alert(e.message || "Failed to update patient.")
@@ -112,6 +130,7 @@ export default function PatientDetailPage() {
   const firstName = nameParts[0] || ""
   const lastName = nameParts.slice(1).join(" ") || ""
   const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  const patientTreatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -119,66 +138,76 @@ export default function PatientDetailPage() {
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Patients
       </Link>
 
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Patient">
-        <form className="space-y-3 max-h-[70vh] overflow-y-auto pr-2" onSubmit={handleSave}>
+      {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+
+      <Modal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); resetEditFormState() }} title="Edit Patient">
+        <form className="space-y-3 max-h-[70vh] overflow-y-auto pr-2" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="caseNumber" defaultValue={patient.caseNumber} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Mobile</label><input required name="mobile" type="tel" defaultValue={patient.mobileNumber} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="caseNumber" defaultValue={patient.caseNumber} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Mobile</label><input required name="mobile" type="tel" defaultValue={patient.mobileNumber} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">First Name</label><input required name="firstName" defaultValue={firstName} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Last Name</label><input required name="lastName" defaultValue={lastName} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">First Name</label><input required name="firstName" defaultValue={firstName} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Last Name</label><input required name="lastName" defaultValue={lastName} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-4 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Age</label><input required name="age" type="number" defaultValue={patient.age} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Age</label><input required name="age" type="number" defaultValue={patient.age} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Gender</label>
-              <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className={ic}>
+              <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className={ic} {...FORM_FIELD_PROPS}>
                 <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
               </select>
             </div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="bloodGroup" defaultValue={patient.bloodGroup} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.dateOfBirth} className={ic} /></div>
+            <div className="space-y-1 col-span-2"><label className="text-sm font-medium text-slate-700">Treatment Type</label>
+              <select name="treatmentType" value={editTreatmentType} onChange={(e) => setEditTreatmentType(e.target.value as TreatmentType)} className={ic} required {...FORM_FIELD_PROPS}>
+                <option value="Allopathic">Allopathic</option>
+                <option value="Homeopathic">Homeopathic</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="bloodGroup" defaultValue={patient.bloodGroup} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.dateOfBirth} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           {editGender === "Female" && (
             <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">LMP</label>
-                  <input name="lmp" type="date" defaultValue={patient.lmp} className={ic} />
+                  <input name="lmp" type="date" defaultValue={patient.lmp} className={ic} {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">Cycle (days)</label>
-                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrualCycleDays} className={ic} placeholder="28" />
+                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrualCycleDays} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternateMobile" defaultValue={patient.alternateMobile} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Email</label><input name="email" type="email" defaultValue={patient.email} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternateMobile" defaultValue={patient.alternateMobile} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Email</label><input name="email" type="email" defaultValue={patient.email} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergencyContact" defaultValue={patient.emergencyContact} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Occupation</label><input name="occupation" defaultValue={patient.occupation} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergencyContact" defaultValue={patient.emergencyContact} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Occupation</label><input name="occupation" defaultValue={patient.occupation} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Address</label><input name="addressLine1" defaultValue={patient.address?.line1} className={ic} /></div>
+          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Address</label><input name="addressLine1" defaultValue={patient.address?.line1} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">City</label><input name="city" defaultValue={patient.address?.city} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">State</label><input name="state" defaultValue={patient.address?.state} className={ic} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Pincode</label><input name="pincode" defaultValue={patient.address?.pincode} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">City</label><input name="city" defaultValue={patient.address?.city} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">State</label><input name="state" defaultValue={patient.address?.state} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Pincode</label><input name="pincode" defaultValue={patient.address?.pincode} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Marital Status</label>
-              <select name="maritalStatus" defaultValue={patient.maritalStatus} className={ic}>
+              <select name="maritalStatus" defaultValue={patient.maritalStatus} className={ic} {...FORM_FIELD_PROPS}>
                 <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
               </select>
             </div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Allergies</label><input name="allergies" defaultValue={patient.allergies} className={ic} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Allergies</label><input name="allergies" defaultValue={patient.allergies} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} /></div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} /></div>
+          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} {...FORM_FIELD_PROPS} /></div>
+          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
-            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} disabled={isSaving}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => { setIsEditModalOpen(false); resetEditFormState() }} disabled={isSaving}>Cancel</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save Changes"}</Button>
           </div>
         </form>
@@ -214,7 +243,9 @@ export default function PatientDetailPage() {
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-6">
             {patient.photo ? (
-              <img src={patient.photo} alt={patient.fullName} className="w-16 h-16 rounded-full object-cover border-2 border-slate-200" />
+              <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-slate-200">
+                <Image src={patient.photo} alt={patient.fullName} fill unoptimized sizes="64px" className="object-cover" />
+              </div>
             ) : (
               <Avatar fallback={patient.fullName?.substring(0, 2).toUpperCase()} size="xl" />
             )}
@@ -222,8 +253,8 @@ export default function PatientDetailPage() {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">{patient.fullName}</h1>
                 <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">Case: {patient.caseNumber}</Badge>
-                <Badge variant="outline" className={`font-bold ${getTreatmentType(patient.caseNumber) === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
-                  {getTreatmentType(patient.caseNumber)}
+                <Badge variant="outline" className={`font-bold ${patientTreatmentType === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+                  {patientTreatmentType}
                 </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-slate-600">
@@ -250,11 +281,16 @@ export default function PatientDetailPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            <Button variant="outline" size="sm" className="flex-1 md:flex-none" onClick={() => setIsEditModalOpen(true)}>
+            <Button variant="outline" size="sm" className="flex-1 md:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
               <Edit className="w-4 h-4 mr-2" /> Edit
             </Button>
             <Button variant="outline" size="sm" className="flex-1 md:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={async () => {
               if (window.confirm("Are you sure you want to delete this patient?")) {
+                const linked = await getPatientLinkedRecordCounts(patient.id!)
+                if (linked.appointments || linked.visits || linked.payments) {
+                  alert("This patient cannot be deleted because linked appointments, visits, or payments already exist.")
+                  return
+                }
                 await deletePatient(patient.id!)
                 router.push("/patients")
               }
@@ -343,6 +379,7 @@ export default function PatientDetailPage() {
                     </div>
                   </div>
                 )}
+                <VisitImageGallery images={visit.visitImages} />
                 {visit.followUpDate && (
                   <div className="pt-4 border-t border-slate-100">
                     <h4 className="text-xs font-semibold text-slate-500 uppercase">Follow-up</h4>
@@ -409,11 +446,13 @@ export default function PatientDetailPage() {
                 <tbody className="divide-y divide-slate-100">
                   {(() => {
                     // Combine visits (debits) and payments (credits) into one timeline
-                    const entries: { date: string; desc: string; debit: number; credit: number }[] = []
+                    const entries: { date: string; sortKey: number; desc: string; debit: number; credit: number }[] = []
                     visits.forEach(v => {
                       if (v.totalBill && v.totalBill > 0) {
+                        const visitDate = v.createdAt?.toDate?.()
                         entries.push({
-                          date: v.createdAt?.toDate?.()?.toLocaleDateString() || "-",
+                          date: visitDate?.toLocaleDateString() || "-",
+                          sortKey: visitDate?.getTime() || 0,
                           desc: `Visit: ${v.diagnosis || "Consultation"}`,
                           debit: v.totalBill,
                           credit: 0,
@@ -421,15 +460,17 @@ export default function PatientDetailPage() {
                       }
                     })
                     payments.forEach(p => {
+                      const paymentDate = p.date ? new Date(`${p.date}T00:00:00`) : p.createdAt?.toDate?.()
                       entries.push({
-                        date: p.date || p.createdAt?.toDate?.()?.toLocaleDateString() || "-",
+                        date: p.date || paymentDate?.toLocaleDateString() || "-",
+                        sortKey: paymentDate?.getTime() || 0,
                         desc: `Payment: ${p.paymentMethod?.toUpperCase() || ""}${p.description ? ` - ${p.description}` : ""}`,
                         debit: 0,
                         credit: p.amount,
                       })
                     })
                     // Sort by date (newest first)
-                    entries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    entries.sort((a, b) => b.sortKey - a.sortKey)
 
                     if (entries.length === 0) {
                       return <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">No transactions recorded</td></tr>

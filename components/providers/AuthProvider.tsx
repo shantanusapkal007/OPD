@@ -9,10 +9,14 @@ import type { UserRole } from '@/lib/types';
 // ==========================================
 // 🔒 CHANGE THESE TO YOUR ALLOWED GMAIL IDs
 // ==========================================
-export const ALLOWED_EMAILS = [
-  "shantanusapkal007@gmail.com", 
-  "doctor@example.com"
+const DEFAULT_ALLOWED_EMAILS = [
+  "shantanusapkal007@gmail.com",
+  "doctor@example.com",
 ];
+
+const ALLOWED_EMAILS = (process.env.NEXT_PUBLIC_ALLOWED_EMAILS?.split(",") ?? DEFAULT_ALLOWED_EMAILS)
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 type User = {
   id: string;
@@ -49,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Enforce whitelist check on session restore
-        if (!ALLOWED_EMAILS.includes(firebaseUser.email || '')) {
+        if (!ALLOWED_EMAILS.includes((firebaseUser.email || '').toLowerCase())) {
           await firebaseSignOut(auth);
           setUser(null);
           setLoading(false);
@@ -71,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             photoURL: appUser.photoURL,
           });
         } catch (error) {
-          console.error("Error fetching user profile:", error);
           setUser(null);
         }
       } else {
@@ -88,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await signInWithPopup(auth, googleProvider);
       
       // Enforce whitelist check during sign in
-      if (!ALLOWED_EMAILS.includes(result.user.email || '')) {
+      if (!ALLOWED_EMAILS.includes((result.user.email || '').toLowerCase())) {
         await firebaseSignOut(auth);
         const err = new Error('Access Denied: Unwhitelisted Email');
         (err as any).code = 'auth/unauthorized-email';
@@ -108,9 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: appUser.role,
         photoURL: appUser.photoURL,
       };
+      setUser(loggedInUser);
       return loggedInUser;
     } catch (error) {
-      console.error("Error signing in with Google:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -118,11 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+    await firebaseSignOut(auth);
   };
 
   const value = {
