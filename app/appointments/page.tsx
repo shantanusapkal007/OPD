@@ -72,7 +72,8 @@ export default function AppointmentsPage() {
     e.preventDefault()
     if (!selectedPatient) { alert("Please select a patient"); return }
     setIsSaving(true)
-    const fd = new FormData(e.currentTarget)
+    const form = e.currentTarget
+    const fd = new FormData(form)
     try {
       if (!(fd.get("date") as string) || !(fd.get("time") as string)) {
         throw new Error("Date and time are required.");
@@ -89,7 +90,7 @@ export default function AppointmentsPage() {
       })
       setIsBookModalOpen(false)
       resetBookingState()
-      e.currentTarget.reset()
+      form.reset()
       fetchAppointments()
     } catch (e: any) {
       alert(e.message || "Failed to book appointment.")

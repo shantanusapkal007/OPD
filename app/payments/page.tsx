@@ -72,7 +72,8 @@ export default function PaymentsPage() {
     e.preventDefault()
     if (!selectedPatient) { alert("Please select a patient"); return }
     setIsSaving(true)
-    const fd = new FormData(e.currentTarget)
+    const form = e.currentTarget
+    const fd = new FormData(form)
     try {
       const amount = parseInt(fd.get("amount") as string)
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -90,7 +91,7 @@ export default function PaymentsPage() {
       })
       setIsPaymentModalOpen(false)
       resetPaymentState()
-      e.currentTarget.reset()
+      form.reset()
       fetchPayments()
     } catch (e: any) {
       alert(e.message || "Failed to record payment.")
