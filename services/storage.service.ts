@@ -1,5 +1,4 @@
-import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+// No longer using Firebase Storage
 import imageCompression from "browser-image-compression";
 
 const MB = 1024 * 1024;
@@ -20,14 +19,6 @@ function createUniqueId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createStoragePath(folder: string, fileName: string) {
-  return `${folder}/${createUniqueId()}-${sanitizeFileName(fileName)}`;
-}
-
-function replaceFileExtension(fileName: string, nextExtension: string) {
-  return fileName.replace(/\.[^./\\]+$/, "") + `.${nextExtension}`;
-}
-
 async function optimizeImageForUpload(file: File, folder: string) {
   if (typeof window === "undefined") return file;
   if (!file.type.startsWith("image/")) return file;
@@ -44,7 +35,9 @@ async function optimizeImageForUpload(file: File, folder: string) {
 
   try {
     const compressedBlob = await imageCompression(file, options);
-    return new File([compressedBlob], file.name, {
+    // Google Drive keeps original name if we provide it, so let's preserve the custom name format
+    const newName = `${createUniqueId()}-${sanitizeFileName(file.name.replace(/\.[^./\\]+$/, "") + ".webp")}`;
+    return new File([compressedBlob], newName, {
       type: "image/webp",
       lastModified: file.lastModified,
     });
@@ -68,30 +61,26 @@ export function validateImageFiles(files: File[], maxSizeMb: number) {
 
 export async function uploadFileToStorage(file: File, folder: string, onProgress?: UploadProgressCallback) {
   const optimizedFile = await optimizeImageForUpload(file, folder);
-  const fileName = optimizedFile.type === "image/webp" && !optimizedFile.name.toLowerCase().endsWith(".webp")
-    ? replaceFileExtension(optimizedFile.name, "webp")
-    : optimizedFile.name;
-  const storageRef = ref(storage, createStoragePath(folder, fileName));
+  const formData = new FormData();
+  formData.append("file", optimizedFile);
 
-  return new Promise<string>((resolve, reject) => {
-    const uploadTask = uploadBytesResumable(storageRef, optimizedFile, { contentType: optimizedFile.type || file.type });
+  // Fake upload progress initialization since fetch doesn't natively support it easily
+  onProgress?.(10);
 
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        if (!snapshot.totalBytes) return;
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        onProgress?.(Math.round(progress));
-      },
-      (error) => {
-        console.error(error);
-        reject(error);
-      },
-      async () => {
-        resolve(await getDownloadURL(storageRef));
-      }
-    );
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
   });
+
+  onProgress?.(100);
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || "Failed to upload to Google Drive");
+  }
+
+  const data = await res.json();
+  return data.url;
 }
 
 export async function uploadFilesToStorage(files: File[], folder: string, onProgress?: UploadProgressCallback) {
