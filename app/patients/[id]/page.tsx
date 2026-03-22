@@ -222,8 +222,8 @@ export default function PatientDetailPage() {
               <span className="text-sm font-medium text-slate-900">Primary (+91 9420893995)</span>
             </label>
             <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-              <input type="radio" value="Secondary" checked={selectedWhatsAppNumber === "Secondary"} onChange={(e) => setSelectedWhatsAppNumber(e.target.value)} className="text-green-600 w-4 h-4" />
-              <span className="text-sm font-medium text-slate-900">Secondary Number</span>
+              <input type="radio" value="9421311486" checked={selectedWhatsAppNumber === "9421311486"} onChange={(e) => setSelectedWhatsAppNumber(e.target.value)} className="text-green-600 w-4 h-4" />
+              <span className="text-sm font-medium text-slate-900">Secondary (+91 9421311486)</span>
             </label>
           </div>
           <div className="pt-4 flex justify-end gap-2">
