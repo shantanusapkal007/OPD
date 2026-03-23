@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithRedirect, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { getOrCreateUser } from '@/services/user.service';
 import type { UserRole } from '@/lib/types';
@@ -92,10 +92,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async (): Promise<void> => {
     setLoading(true);
     try {
-      // Use redirect instead of popup to prevent browser COOP/CORS popup disappearance issues
-      await signInWithRedirect(auth, googleProvider);
-      // The browser will redirect, so no code executes after this.
-      // onAuthStateChanged will handle the user when they arrive back.
+      // Use popup for cross-device compatibility, as redirect often fails on mobile due to third-party cookie blocking
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      // Enforce whitelist check immediately on sign-in
+      if (!ALLOWED_EMAILS.includes((result.user.email || '').toLowerCase())) {
+        await firebaseSignOut(auth);
+        throw new Error('auth/unauthorized-email');
+      }
     } catch (error) {
       setLoading(false);
       throw error;
