@@ -133,9 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
-    isDoctor: user?.role === 'doctor' || user?.role === 'admin',
-    isReceptionist: user?.role === 'receptionist',
+    isAdmin: !!user,
+    isDoctor: !!user,
+    isReceptionist: !!user,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

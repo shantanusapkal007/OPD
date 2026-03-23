@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 
 // ─── Users ───────────────────────────────────────────────
-export type UserRole = "admin" | "doctor" | "receptionist";
+export type UserRole = "admin";
 export type TreatmentType = "Allopathic" | "Homeopathic";
 
 export interface AppUser {

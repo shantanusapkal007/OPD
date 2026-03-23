@@ -13,7 +13,7 @@ export async function getOrCreateUser(uid: string, name: string, email: string, 
     userId: uid,
     name,
     email,
-    role: "doctor", // default role; admin can change later
+    role: "admin", // single user system, everyone is admin
     photoURL: photoURL || "",
     createdAt: Timestamp.now(),
   };
