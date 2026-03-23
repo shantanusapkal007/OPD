@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithRedirect, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { getOrCreateUser } from '@/services/user.service';
 import type { UserRole } from '@/lib/types';
@@ -14,6 +14,7 @@ const DEFAULT_ALLOWED_EMAILS = [
   "tusharsuradkar184@gmail.com",
   "vinaykhairnar9404@gmail.com",
   "adityasutar99999@gmail.com",
+  "tusharsuradkar10@gmail.com",
   "doctor@example.com",
 ];
 
@@ -32,7 +33,7 @@ type User = {
 type AuthContextType = {
   user: User;
   loading: boolean;
-  signInWithGoogle: () => Promise<User>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -88,38 +89,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signInWithGoogle = async (): Promise<User> => {
+  const signInWithGoogle = async (): Promise<void> => {
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      // Enforce whitelist check during sign in
-      if (!ALLOWED_EMAILS.includes((result.user.email || '').toLowerCase())) {
-        await firebaseSignOut(auth);
-        const err = new Error('Access Denied: Unwhitelisted Email');
-        (err as any).code = 'auth/unauthorized-email';
-        throw err;
-      }
-
-      const appUser = await getOrCreateUser(
-        result.user.uid,
-        result.user.displayName || 'Doctor',
-        result.user.email || '',
-        result.user.photoURL || ''
-      );
-      const loggedInUser: User = {
-        id: appUser.userId,
-        displayName: (appUser.name || 'Doctor').toLowerCase().startsWith('dr') ? (appUser.name || 'Doctor') : `Dr. ${appUser.name || 'Doctor'}`,
-        email: appUser.email,
-        role: appUser.role,
-        photoURL: appUser.photoURL,
-      };
-      setUser(loggedInUser);
-      return loggedInUser;
+      // Use redirect instead of popup to prevent browser COOP/CORS popup disappearance issues
+      await signInWithRedirect(auth, googleProvider);
+      // The browser will redirect, so no code executes after this.
+      // onAuthStateChanged will handle the user when they arrive back.
     } catch (error) {
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 

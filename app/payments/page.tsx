@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, startTransition } from "react"
-import { IndianRupee, Plus } from "lucide-react"
+import { MessageSquare, IndianRupee, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Modal } from "@/components/ui/modal"
@@ -9,7 +9,7 @@ import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { formatCurrency } from "@/lib/utils"
 import { getPayments, addPayment, getPaymentStats } from "@/services/payment.service"
-import { searchPatients } from "@/services/patient.service"
+import { searchPatients, getPatient } from "@/services/patient.service"
 import type { Payment, Patient, PaymentMethod, PaymentStatus } from "@/lib/types"
 
 export default function PaymentsPage() {
@@ -19,6 +19,7 @@ export default function PaymentsPage() {
   const [stats, setStats] = useState({ total: 0, count: 0, pending: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<string | null>(null)
 
   const [patientSearch, setPatientSearch] = useState("")
   const [patientResults, setPatientResults] = useState<Patient[]>([])
@@ -102,12 +103,52 @@ export default function PaymentsPage() {
     }
   }
 
+  const handleSendWhatsAppBill = async (pay: Payment) => {
+    setIsSendingWhatsApp(pay.id!)
+    try {
+      const patient = await getPatient(pay.patientId)
+      let phone = patient?.mobileNumber || ""
+
+      if (!phone || phone === "0000000000") {
+        phone = window.prompt("Enter mobile number to send WhatsApp bill:") || ""
+      }
+      
+      phone = phone.replace(/\D/g, '')
+
+      if (!phone || phone.length < 10) {
+        if (phone.length > 0) alert("Invalid phone number.")
+        return
+      }
+
+      phone = phone.slice(-10)
+
+      const message = `*SURADKAR HOSPITAL*
+------------------------
+*Payment Receipt*
+Receipt No: ${pay.id?.substring(0, 6).toUpperCase()}
+Patient: ${pay.patientName}
+Date: ${pay.date}
+Amount: Rs. ${pay.amount}
+Mode: ${pay.paymentMethod.toUpperCase()}
+Description: ${pay.description || 'Consultation / Treatment'}
+------------------------
+Thank you for your visit!`
+
+      const url = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`
+      window.open(url, '_blank')
+    } catch (err) {
+      alert("Failed to load patient details.")
+    } finally {
+      setIsSendingWhatsApp(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Payments</h1>
-          <p className="text-sm text-slate-500">Track collections, transactions, and pending balances.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Billing & Payments</h1>
+          <p className="text-sm text-slate-500">Track collections, send WhatsApp bills, and view pending balances.</p>
         </div>
         <div className="flex gap-2">
           <Button className="w-full sm:w-auto" onClick={() => setIsPaymentModalOpen(true)}>
@@ -207,6 +248,7 @@ export default function PaymentsPage() {
                 <th className="px-6 py-4">Amount</th>
                 <th className="px-6 py-4">Mode</th>
                 <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -217,6 +259,22 @@ export default function PaymentsPage() {
                   <td className="px-6 py-4 font-medium text-slate-900">{formatCurrency(pay.amount)}</td>
                   <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium uppercase">{pay.paymentMethod}</span></td>
                   <td className="px-6 py-4 text-slate-500">{pay.date}</td>
+                  <td className="px-6 py-4 text-right">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleSendWhatsAppBill(pay)}
+                      disabled={isSendingWhatsApp === pay.id}
+                      className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                    >
+                      {isSendingWhatsApp === pay.id ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                      )}
+                      WhatsApp
+                    </Button>
+                  </td>
                 </tr>
               ))}
               {payments.length === 0 && (
