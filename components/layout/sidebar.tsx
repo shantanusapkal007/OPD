@@ -13,8 +13,8 @@ const navItems = [
   { href: "/patients", label: "Patients", icon: Users },
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/visits", label: "Visits", icon: Pill },
-  { href: "/payments", label: "Payments", icon: IndianRupee },
-  { href: "/khata", label: "Khata Book", icon: BookOpen },
+  { href: "/payments", label: "Billing", icon: IndianRupee },
+  { href: "/khata", label: "Khata", icon: BookOpen },
   { href: "/data", label: "Import / Export", icon: FileSpreadsheet },
 ]
 

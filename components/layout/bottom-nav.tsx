@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Calendar, Pill, FileSpreadsheet, MoreHorizontal } from "lucide-react"
+import { Home, Users, Calendar, Pill, IndianRupee, MoreHorizontal } from "lucide-react"
 import { canAccessPath } from "@/lib/access"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { cn } from "@/lib/utils"
@@ -12,7 +12,7 @@ const navItems = [
   { href: "/patients", label: "Patients", icon: Users },
   { href: "/appointments", label: "Appts", icon: Calendar },
   { href: "/visits", label: "Visits", icon: Pill },
-  { href: "/data", label: "Data", icon: FileSpreadsheet },
+  { href: "/payments", label: "Billing", icon: IndianRupee },
 ]
 
 export function BottomNav() {
