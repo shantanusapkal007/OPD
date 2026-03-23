@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           setUser({
             id: appUser.userId,
-            displayName: appUser.name.toLowerCase().startsWith('dr') ? appUser.name : `Dr. ${appUser.name}`,
+            displayName: (appUser.name || 'Doctor').toLowerCase().startsWith('dr') ? (appUser.name || 'Doctor') : `Dr. ${appUser.name || 'Doctor'}`,
             email: appUser.email,
             role: appUser.role,
             photoURL: appUser.photoURL,
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       const loggedInUser: User = {
         id: appUser.userId,
-        displayName: appUser.name.toLowerCase().startsWith('dr') ? appUser.name : `Dr. ${appUser.name}`,
+        displayName: (appUser.name || 'Doctor').toLowerCase().startsWith('dr') ? (appUser.name || 'Doctor') : `Dr. ${appUser.name || 'Doctor'}`,
         email: appUser.email,
         role: appUser.role,
         photoURL: appUser.photoURL,
