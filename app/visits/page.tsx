@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, startTransition } from "react"
-import { Pill, Plus, Activity, Thermometer, Heart, Wind, ImagePlus, Loader2 } from "lucide-react"
+import { Pill, Plus, Activity, Thermometer, Heart, Wind, ImagePlus, Loader2, XCircle, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
@@ -34,6 +34,92 @@ function parseOptionalFloat(value: FormDataEntryValue | null) {
 }
 
 export default function VisitsPage() {
+  const [medicines, setMedicines] = useState<Medicine[]>([])
+
+  const RX_TEMPLATES: Record<string, Medicine[]> = {
+    Fever: [
+      { name: "Tab Paracetamol 500mg", dosage: "1-0-1", frequency: "BD", days: 3 },
+      { name: "Tab Pantoprazole 40mg", dosage: "1-0-0", frequency: "OD AC", days: 3 }
+    ],
+    Cold: [
+      { name: "Tab Cetirizine 10mg", dosage: "0-0-1", frequency: "HS", days: 5 },
+      { name: "Syp Cough Expectorant", dosage: "5ml", frequency: "TDS", days: 5 }
+    ],
+    Diabetes: [
+      { name: "Tab Metformin 500mg", dosage: "1-0-1", frequency: "BD", days: 30 }
+    ],
+    BP: [
+      { name: "Tab Amlodipine 5mg", dosage: "1-0-0", frequency: "OD", days: 30 }
+    ]
+  }
+
+  const addMedicine = () => setMedicines([...medicines, { name: "", dosage: "", frequency: "", days: 3 }])
+  const updateMedicine = (idx: number, field: keyof Medicine, val: string | number) => { 
+    const newMeds = [...medicines]; 
+    newMeds[idx] = { ...newMeds[idx], [field]: val as never }; 
+    setMedicines(newMeds); 
+  }
+  const removeMedicine = (idx: number) => setMedicines(medicines.filter((_, i) => i !== idx))
+  const applyTemplate = (temp: Medicine[]) => setMedicines(temp.map(m => ({ ...m })))
+
+  const setQuickFollowUp = (days: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + days)
+    const el = document.getElementsByName("followUpDate")[0] as HTMLInputElement
+    if (el) el.value = d.toISOString().split("T")[0]
+  }
+
+  const handlePrint = (visit: Visit) => {
+    const printContent = `
+      <html><head><title>Prescription</title>
+      <style>
+        body { font-family: sans-serif; padding: 40px; color: #0f172a; }
+        .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
+        h1 { margin: 0; color: #0f172a; font-size: 26px; font-weight: 700; }
+        h3 { margin: 5px 0 0 0; color: #475569; font-size: 14px; font-weight: normal; }
+        .pat-info { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; background: #f8fafc; padding: 12px; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; }
+        td { font-size: 14px; }
+        .notes { font-size: 11px; color: #64748b; margin-top: 4px; display: block; }
+        .rx-title { margin: 0 0 10px 0; font-size: 20px; font-weight: 600; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px;}
+        .footer { margin-top: 80px; text-align: right; }
+        .sig { border-top: 1px solid #000; padding-top: 5px; display: inline-block; width: 200px; text-align: center; font-size: 14px;}
+        .section { margin-top: 30px; font-size: 14px;}
+      </style>
+      </head><body>
+        <div class="header">
+          <h1>ClinicFlow Care</h1>
+          <h3>Dr. Consultant Physician • MBBS, MD</h3>
+        </div>
+        <div class="pat-info">
+          <div><strong>Patient:</strong> ${visit.patientName}</div>
+          <div><strong>Date:</strong> ${visit.createdAt && typeof visit.createdAt !== 'string' ? new Date((visit.createdAt as any).seconds * 1000).toLocaleDateString() : new Date().toLocaleDateString()}</div>
+        </div>
+        <div class="rx-title">Rx</div>
+        <table>
+          <thead><tr><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead>
+          <tbody>
+            ${visit.prescriptions?.map(p => `<tr><td><strong>${p.name}</strong>${p.notes ? `<span class="notes">${p.notes}</span>` : ''}</td><td>${p.dosage}</td><td>${p.frequency}</td><td>${p.days} Days</td></tr>`).join('')}
+          </tbody>
+        </table>
+        
+        ${visit.advice ? `<div class="section"><strong>Advice & Instructions:</strong> <p>${visit.advice}</p></div>` : ''}
+        ${visit.followUpDate ? `<div class="section"><strong>Follow-up Date:</strong> ${visit.followUpDate}</div>` : ''}
+
+        <div class="footer"><div class="sig">Doctor Signature</div></div>
+      </body></html>
+    `;
+    const printWin = window.open('', '', 'width=800,height=600');
+    if (printWin) {
+      printWin.document.write(printContent);
+      printWin.document.close();
+      printWin.focus();
+      printWin.print();
+      printWin.close();
+    }
+  }
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [visits, setVisits] = useState<Visit[]>([])
@@ -164,6 +250,7 @@ export default function VisitsPage() {
     revokeVisitImagePreviews(visitImagePreviews)
     setVisitImagePreviews([])
     setUploadError("")
+    setMedicines([])
     if (imageInputRef.current) {
       imageInputRef.current.value = ""
     }
@@ -205,16 +292,8 @@ export default function VisitsPage() {
 
     const form = e.currentTarget
     const fd = new FormData(form)
-    const rxText = (fd.get("prescription") as string) || ""
-    const prescriptions: Medicine[] = rxText
-      .split("\n")
-      .filter((line) => line.trim())
-      .map((line) => ({
-        name: line.trim(),
-        dosage: "-",
-        frequency: "As directed",
-        days: 0,
-      }))
+    
+    const prescriptionsToSave = medicines.filter(m => m.name.trim() !== "");
 
     try {
       if (!(fd.get("complaints") as string)?.trim()) {
@@ -265,7 +344,7 @@ export default function VisitsPage() {
         referral: fd.get("referral") as string || "",
         followUpDate: fd.get("followUpDate") as string || "",
         paymentStatus: (fd.get("paymentStatus") as "paid" | "unpaid") || "unpaid",
-        prescriptions,
+        prescriptions: prescriptionsToSave,
         vitals: cleanedVitals,
       })
 
@@ -359,9 +438,33 @@ export default function VisitsPage() {
           <div className="space-y-1"><label className={lbl}>Examination Findings</label><textarea name="examination" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="On examination: Throat congested, abdomen soft..." {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className={lbl}>Diagnosis *</label><input required name="diagnosis" className={ic} placeholder="Acute Viral Fever" {...FORM_FIELD_PROPS} /></div>
 
-          {/* Prescription */}
-          <h4 className={secHead}>Prescription (Rx)</h4>
-          <div className="space-y-1"><label className={lbl}>Medicines (one per line)</label><textarea name="prescription" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={4} placeholder={"Tab Paracetamol 500mg - 1-0-1 x 3 days\nTab Cetirizine 10mg - 0-0-1 x 5 days\nSyp Cough - 5ml TDS x 5 days"} {...FORM_FIELD_PROPS} /></div>
+          {/* Structured Prescription */}
+          <div className="flex items-center justify-between border-t border-slate-100 mt-2 mb-1 pt-3">
+             <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prescription (Rx)</h4>
+             <div className="flex gap-2">
+                {Object.keys(RX_TEMPLATES).map(k => (
+                  <button type="button" key={k} onClick={() => applyTemplate(RX_TEMPLATES[k])} className="text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase">{k}</button>
+                ))}
+             </div>
+          </div>
+          <div className="space-y-2 border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-2">
+             {medicines.length === 0 && <p className="text-xs text-center text-slate-400 py-2">No medicines added. Select a template or add manually.</p>}
+             {medicines.map((med, idx) => (
+                <div key={idx} className="flex gap-2 items-start bg-white p-2 rounded shadow-sm border border-slate-100">
+                   <div className="flex-1 space-y-2">
+                      <div className="grid grid-cols-12 gap-2">
+                         <input className="col-span-12 sm:col-span-5 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Medicine Name" value={med.name} onChange={e => updateMedicine(idx, 'name', e.target.value)} />
+                         <input className="col-span-4 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Dose (1-0-1)" value={med.dosage} onChange={e => updateMedicine(idx, 'dosage', e.target.value)} />
+                         <input className="col-span-4 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Freq (BD)" value={med.frequency} onChange={e => updateMedicine(idx, 'frequency', e.target.value)} />
+                         <div className="col-span-4 sm:col-span-3 flex items-center gap-1"><input type="number" className="w-full h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Days" value={med.days || ""} onChange={e => updateMedicine(idx, 'days', parseInt(e.target.value) || 0)} /><span className="text-xs text-slate-500">d</span></div>
+                      </div>
+                      <input className="w-full h-8 px-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500" placeholder="Notes (e.g., After food)" value={med.notes || ""} onChange={e => updateMedicine(idx, 'notes', e.target.value)} />
+                   </div>
+                   <button type="button" onClick={() => removeMedicine(idx)} className="text-slate-300 hover:text-red-500 p-1"><XCircle className="w-5 h-5" /></button>
+                </div>
+             ))}
+             <Button type="button" variant="ghost" size="sm" onClick={addMedicine} className="w-full text-blue-600 text-xs mt-1 border border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 focus:ring-0"><Plus className="w-3 h-3 mr-1"/> Add Medicine</Button>
+          </div>
 
           {/* Investigations */}
           <h4 className={secHead}>Investigations & Lab</h4>
@@ -421,7 +524,10 @@ export default function VisitsPage() {
           <h4 className={secHead}>Advice & Follow-up</h4>
           <div className="space-y-1"><label className={lbl}>Advice / Instructions</label><textarea name="advice" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Take rest, drink fluids, avoid oily food..." {...FORM_FIELD_PROPS} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={lbl}>Follow-up Date</label><input name="followUpDate" type="date" className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1">
+               <div className="flex items-center justify-between"><label className={lbl}>Follow-up Date</label><div className="flex gap-1">{[3,5,7].map(d => <button type="button" key={d} onClick={() => setQuickFollowUp(d)} className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded focus:outline-none">+{d}d</button>)}</div></div>
+               <input name="followUpDate" type="date" className={ic} {...FORM_FIELD_PROPS} />
+            </div>
             <div className="space-y-1"><label className={lbl}>Referral (if any)</label><input name="referral" className={ic} placeholder="Dr. XYZ, Cardiologist" {...FORM_FIELD_PROPS} /></div>
           </div>
 
@@ -505,11 +611,36 @@ export default function VisitsPage() {
               </div>
 
               {visit.prescriptions?.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-100">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase mb-1">Rx (Prescription)</h4>
-                  <ul className="text-sm text-slate-700 list-disc list-inside space-y-0.5">
-                    {visit.prescriptions.map((prescription, index) => <li key={index}>{prescription.name}</li>)}
-                  </ul>
+                <div className="mt-4 pt-3 border-t border-slate-200 print-rx">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase mb-3 flex items-center justify-between">
+                     <span>Rx (Prescription)</span>
+                     <Button variant="ghost" size="sm" className="h-6 text-[10px] hidden sm:flex border border-slate-200" onClick={() => handlePrint(visit)}><Printer className="w-3 h-3 mr-1"/> Print PDF</Button>
+                  </h4>
+                  <div className="overflow-x-auto border border-slate-100 rounded-lg">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Medicine</th>
+                          <th className="px-3 py-2 font-semibold text-center">Dose</th>
+                          <th className="px-3 py-2 font-semibold text-center">Freq</th>
+                          <th className="px-3 py-2 font-semibold text-center">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {visit.prescriptions.map((px, i) => (
+                          <tr key={i} className="bg-white">
+                            <td className="px-3 py-2 font-medium text-slate-800">
+                               {px.name}
+                               {px.notes && <span className="block text-[10px] font-normal text-slate-500 mt-0.5">{px.notes}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-center text-slate-600">{px.dosage}</td>
+                            <td className="px-3 py-2 text-center text-slate-600">{px.frequency}</td>
+                            <td className="px-3 py-2 text-center text-slate-600">{px.days} days</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 

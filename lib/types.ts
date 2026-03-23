@@ -69,6 +69,7 @@ export interface Medicine {
   dosage: string;
   frequency: string;
   days: number;
+  notes?: string;
 }
 
 export interface Vitals {
