@@ -25,15 +25,8 @@ const REQUIRED_VARS = {
   'Firebase (Optional)': [
     'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID',
   ],
-  'Google Drive (Optional)': [
-    'GOOGLE_CLIENT_EMAIL',
-    'GOOGLE_PRIVATE_KEY',
-    'GOOGLE_DRIVE_FOLDER_ID',
-  ],
-  'Application (Optional)': [
+  'Authentication (Optional)': [
     'NEXT_PUBLIC_ALLOWED_EMAILS',
-    'APP_URL',
-    'GEMINI_API_KEY',
   ],
 };
 
