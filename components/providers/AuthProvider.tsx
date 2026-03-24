@@ -78,11 +78,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: appUser.role,
             photoURL: appUser.photoURL,
           });
-        } catch (error) {
+        } catch (error: any) {
+          console.error('Failed to create/get user:', error);
           setUser(null);
         }
       } else {
         setUser(null);
+      }
+      setLoading(false);
+    }, (error: any) => {
+      // Firebase auth state listener error handler
+      console.error('Firebase Auth Error:', error);
+      if (error.code === 'auth/invalid-api-key') {
+        console.error(
+          '❌ Firebase API Key is invalid or unauthorized.\n' +
+          '📖 Steps to fix:\n' +
+          '   1. Check that NEXT_PUBLIC_FIREBASE_API_KEY is correctly set in .env.local\n' +
+          '   2. For Vercel: Verify env vars in Project Settings\n' +
+          '   3. Ensure the API key belongs to the correct Firebase project\n' +
+          '   4. Check Firebase Console > Settings > Authorized domains includes your domain\n' +
+          '   See FIREBASE_SETUP.md for detailed instructions.'
+        );
       }
       setLoading(false);
     });
@@ -100,8 +116,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await firebaseSignOut(auth);
         throw new Error('auth/unauthorized-email');
       }
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false);
+      
+      // Provide helpful error messages for common Firebase errors
+      if (error.code === 'auth/invalid-api-key') {
+        const newError = new Error(
+          'Firebase configuration error: Invalid API Key. ' +
+          'Please check your environment variables and Vercel settings. ' +
+          'See FIREBASE_SETUP.md for instructions.'
+        );
+        (newError as any).code = 'auth/invalid-api-key';
+        throw newError;
+      }
+      
       throw error;
     }
   };

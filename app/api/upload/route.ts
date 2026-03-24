@@ -10,8 +10,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_DRIVE_FOLDER_ID) {
-      return NextResponse.json({ error: "Google Drive is not configured properly" }, { status: 500 });
+    // Validate Google Drive configuration
+    const missingVars = [];
+    if (!process.env.GOOGLE_CLIENT_EMAIL) missingVars.push('GOOGLE_CLIENT_EMAIL');
+    if (!process.env.GOOGLE_PRIVATE_KEY) missingVars.push('GOOGLE_PRIVATE_KEY');
+    if (!process.env.GOOGLE_DRIVE_FOLDER_ID) missingVars.push('GOOGLE_DRIVE_FOLDER_ID');
+
+    if (missingVars.length > 0) {
+      console.error('❌ Google Drive not configured. Missing:', missingVars.join(', '));
+      return NextResponse.json({
+        error: `Google Drive is not configured properly. Missing: ${missingVars.join(', ')}. See FIREBASE_SETUP.md for setup instructions.`,
+      }, { status: 500 });
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -63,7 +72,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ url });
   } catch (error: any) {
     console.error("Google Drive Upload Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to upload" }, { status: 500 });
+    
+    // Provide helpful error messages for common errors
+    let errorMessage = error.message || "Failed to upload";
+    
+    if (error.message?.includes('invalid_grant')) {
+      errorMessage = 'Google Drive authentication failed. Please verify GOOGLE_PRIVATE_KEY format in .env.local or Vercel settings.';
+    } else if (error.message?.includes('Permission denied')) {
+      errorMessage = 'Permission denied. Check that GOOGLE_DRIVE_FOLDER_ID is correct and service account has access.';
+    }
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
