@@ -1,8 +1,9 @@
 import {
-  collection, doc, getDocs, query, where, Timestamp, runTransaction, increment,
+  collection, doc, getDocs, query, where, Timestamp, runTransaction, increment, getDoc, updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { clearPatientCache } from "@/services/patient.service";
+import { validateVisitBasics, calculateEDD } from "@/lib/visit-validators";
 import type { Visit } from "@/lib/types";
 
 const COL = "visits";
@@ -113,4 +114,135 @@ export async function updateVisitImages(visitId: string, visitImages: string[]):
   await runTransaction(db, async (transaction) => {
     transaction.update(visitRef, { visitImages });
   });
+}
+
+export async function getVisit(visitId: string): Promise<Visit | null> {
+  const visitRef = doc(db, COL, visitId);
+  const snap = await getDoc(visitRef);
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as Visit;
+}
+
+/**
+ * Updates a visit with validation
+ * Maintains audit trail with isEdited, editedAt, editedBy fields
+ * Calculate EDD if LMP is provided
+ */
+export async function updateVisit(
+  visitId: string,
+  updates: Partial<Visit>,
+  userId: string
+): Promise<void> {
+  if (!visitId) {
+    throw new Error("Visit ID is required");
+  }
+
+  if (!userId) {
+    throw new Error("User ID is required for audit trail");
+  }
+
+  // Validate the updates
+  const validation = validateVisitBasics(updates);
+  if (!validation.valid) {
+    throw new Error(`Validation failed: ${validation.errors.join("; ")}`);
+  }
+
+  const visitRef = doc(db, COL, visitId);
+
+  // Prepare the update data
+  const sanitizedUpdates = stripUndefinedValues({
+    ...updates,
+    complaints: updates.complaints?.trim(),
+    diagnosis: updates.diagnosis?.trim(),
+    notes: updates.notes?.trim(),
+    advice: updates.advice?.trim(),
+    pastHistory: updates.pastHistory?.trim(),
+    familyHistory: updates.familyHistory?.trim(),
+    examinationFindings: updates.examinationFindings?.trim(),
+    historyOfPresentIllness: updates.historyOfPresentIllness?.trim(),
+  });
+
+  // Add EDD if LMP is provided
+  if (updates.lmp) {
+    (sanitizedUpdates as any).edd = calculateEDD(updates.lmp);
+  }
+
+  // Add audit trail
+  const auditUpdate = {
+    ...sanitizedUpdates,
+    isEdited: true,
+    editedAt: Timestamp.now(),
+    editedBy: userId,
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const visitSnap = await transaction.get(visitRef);
+    if (!visitSnap.exists()) {
+      throw new Error("Visit not found");
+    }
+
+    transaction.update(visitRef, auditUpdate);
+  });
+
+  clearPatientCache();
+}
+
+/**
+ * Deletes a medicine from a visit's prescription list
+ */
+export async function removeMedicineFromVisit(
+  visitId: string,
+  medicineIndex: number,
+  userId: string
+): Promise<void> {
+  const visit = await getVisit(visitId);
+  if (!visit) {
+    throw new Error("Visit not found");
+  }
+
+  const updatedPrescriptions = visit.prescriptions?.filter((_, idx) => idx !== medicineIndex) || [];
+
+  await updateVisit(visitId, { prescriptions: updatedPrescriptions }, userId);
+}
+
+/**
+ * Adds a new medicine to a visit's prescription list
+ */
+export async function addMedicineToVisit(
+  visitId: string,
+  medicine: any, // Medicine type
+  userId: string
+): Promise<void> {
+  const visit = await getVisit(visitId);
+  if (!visit) {
+    throw new Error("Visit not found");
+  }
+
+  const updatedPrescriptions = [...(visit.prescriptions || []), medicine];
+
+  await updateVisit(visitId, { prescriptions: updatedPrescriptions }, userId);
+}
+
+/**
+ * Updates a specific medicine in a visit's prescription list
+ */
+export async function updateMedicineInVisit(
+  visitId: string,
+  medicineIndex: number,
+  medicine: any, // Medicine type
+  userId: string
+): Promise<void> {
+  const visit = await getVisit(visitId);
+  if (!visit) {
+    throw new Error("Visit not found");
+  }
+
+  const updatedPrescriptions = [...(visit.prescriptions || [])];
+  if (medicineIndex >= 0 && medicineIndex < updatedPrescriptions.length) {
+    updatedPrescriptions[medicineIndex] = medicine;
+  } else {
+    throw new Error("Invalid medicine index");
+  }
+
+  await updateVisit(visitId, { prescriptions: updatedPrescriptions }, userId);
 }

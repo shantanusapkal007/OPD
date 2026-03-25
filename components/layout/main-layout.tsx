@@ -3,6 +3,7 @@
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { BottomNav } from "./bottom-nav"
+import { ToastContainer } from "@/components/ui/toast"
 import { useAuth } from "../providers/AuthProvider"
 import { canAccessPath } from "@/lib/access"
 import { usePathname, useRouter } from "next/navigation"
@@ -55,6 +56,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </main>
         <BottomNav />
       </div>
+      <ToastContainer />
     </div>
   )
 }

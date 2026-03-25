@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
+import { EditVisitModal } from "@/components/visits/edit-visit-modal"
+import { VisitCard } from "@/components/visits/visit-card"
 import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { formatCurrency, getTreatmentType } from "@/lib/utils"
@@ -21,6 +23,7 @@ import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/
 export default function PatientDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
   const patientId = params.id as string
 
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -36,6 +39,8 @@ export default function PatientDetailPage() {
   const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
+  const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
+  const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
@@ -241,6 +246,24 @@ export default function PatientDetailPage() {
         </div>
       </Modal>
 
+      {/* Edit Visit Modal */}
+      {selectedVisit && user && (
+        <EditVisitModal
+          isOpen={isEditVisitModalOpen}
+          visit={selectedVisit}
+          userId={user.id}
+          onClose={() => {
+            setIsEditVisitModalOpen(false)
+            setSelectedVisit(null)
+          }}
+          onSaved={(updatedVisit) => {
+            setVisits(visits.map(v => v.id === updatedVisit.id ? updatedVisit : v))
+            setSelectedVisit(null)
+            setIsEditVisitModalOpen(false)
+          }}
+        />
+      )}
+
       {/* Patient Profile Card */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
@@ -357,46 +380,14 @@ export default function PatientDetailPage() {
         <div className="space-y-4">
           {visits.length === 0 && <div className="py-12 text-center text-sm text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No visit records</div>}
           {visits.map(visit => (
-            <div key={visit.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900">{visit.createdAt?.toDate?.()?.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) || "Visit"}</h3>
-              </div>
-              {visit.vitals && (
-                <div className="flex flex-wrap gap-4 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-100 text-sm text-slate-700">
-                  {visit.vitals.bp && <span><Activity className="w-4 h-4 inline text-slate-400 mr-1" /><strong>BP:</strong> {visit.vitals.bp}</span>}
-                  {visit.vitals.weight && <span><strong>Weight:</strong> {visit.vitals.weight}kg</span>}
-                  {visit.vitals.temperature && <span><strong>Temp:</strong> {visit.vitals.temperature} F</span>}
-                </div>
-              )}
-              <div className="space-y-3">
-                <div><h4 className="text-xs font-semibold text-slate-500 uppercase">Complaints</h4><p className="text-sm text-slate-900">{visit.complaints}</p></div>
-                <div><h4 className="text-xs font-semibold text-slate-500 uppercase">Diagnosis</h4><p className="text-sm text-slate-900 font-medium">{visit.diagnosis}</p></div>
-                {visit.prescriptions?.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Medicines</h4>
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500">
-                          <tr><th className="px-4 py-2">Medicine</th><th className="px-4 py-2">Dosage</th><th className="px-4 py-2">Freq</th><th className="px-4 py-2">Days</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {visit.prescriptions.map((med, i) => (
-                            <tr key={i}><td className="px-4 py-2 font-medium">{med.name}</td><td className="px-4 py-2">{med.dosage}</td><td className="px-4 py-2">{med.frequency}</td><td className="px-4 py-2">{med.days}</td></tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                <VisitImageGallery images={visit.visitImages} />
-                {visit.followUpDate && (
-                  <div className="pt-4 border-t border-slate-100">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase">Follow-up</h4>
-                    <p className="text-sm text-slate-900">{visit.followUpDate}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <VisitCard
+              key={visit.id}
+              visit={visit}
+              onEdit={(v) => {
+                setSelectedVisit(v)
+                setIsEditVisitModalOpen(true)
+              }}
+            />
           ))}
         </div>
       )}
