@@ -193,14 +193,6 @@ export function getVisitChangeSummary(
     changes.push("Diagnosis updated");
   }
 
-  if (updated.notes && updated.notes !== original.notes) {
-    changes.push("Notes updated");
-  }
-
-  if (updated.lmp && updated.lmp !== original.lmp) {
-    changes.push("LMP updated");
-  }
-
   if (!areMedicinesIdentical(updated.prescriptions, original.prescriptions)) {
     changes.push("Medicines updated");
   }

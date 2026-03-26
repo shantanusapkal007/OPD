@@ -154,18 +154,12 @@ export async function updateVisit(
     ...updates,
     complaints: updates.complaints?.trim(),
     diagnosis: updates.diagnosis?.trim(),
-    notes: updates.notes?.trim(),
     advice: updates.advice?.trim(),
     pastHistory: updates.pastHistory?.trim(),
     familyHistory: updates.familyHistory?.trim(),
     examinationFindings: updates.examinationFindings?.trim(),
     historyOfPresentIllness: updates.historyOfPresentIllness?.trim(),
   });
-
-  // Add EDD if LMP is provided
-  if (updates.lmp) {
-    (sanitizedUpdates as any).edd = calculateEDD(updates.lmp);
-  }
 
   // Add audit trail
   const auditUpdate = {
