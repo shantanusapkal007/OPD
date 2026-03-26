@@ -374,27 +374,28 @@ export default function PatientDetailPage() {
           )}
         </div>
 
-        {/* Overall Medicines Section */}
-        {patient.currentMedicines && patient.currentMedicines.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Pill className="w-4 h-4 text-blue-600" /> Overall Medicines
-            </h3>
-            <div className="space-y-3">
-              {patient.currentMedicines.map((med, idx) => (
-                <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-slate-900">{med.name}</h4>
-                  <div className="text-sm text-slate-600 mt-2 space-y-1">
-                    <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
-                    <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
-                    <p><span className="font-medium">Duration:</span> {med.days} days</p>
-                    {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Overall Medicines Section — always visible */}
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
+          </h3>
+          <PatientMedicines
+            medicines={editMedicines}
+            onMedicinesChange={async (meds) => {
+              setEditMedicines(meds)
+              if (patient?.id) {
+                try {
+                  await updatePatient(patient.id, { currentMedicines: meds })
+                  const updated = await getPatient(patient.id)
+                  setPatient(updated)
+                  showToast("Medicines updated", "success")
+                } catch (e: any) {
+                  showToast(e.message || "Failed to save medicines", "error")
+                }
+              }
+            }}
+          />
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
           <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
