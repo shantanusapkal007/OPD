@@ -14,7 +14,10 @@ import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { getPatients, addPatient, searchPatients } from "@/services/patient.service"
 import { uploadFileToStorage, validateImageFiles } from "@/services/storage.service"
-import type { Patient, TreatmentType } from "@/lib/types"
+import { getVisitsByPatient } from "@/services/visit.service"
+import type { Patient, TreatmentType, Visit } from "@/lib/types"
+import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
+import { QuickLinks } from "@/components/ui/quick-links"
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 const labelClass = "text-sm font-medium text-slate-700"
@@ -26,6 +29,7 @@ export default function PatientsPage() {
   const [selectedGender, setSelectedGender] = useState("Male")
   const [selectedTreatmentType, setSelectedTreatmentType] = useState<TreatmentType>("Allopathic")
   const [patients, setPatients] = useState<Patient[]>([])
+  const [patientVisits, setPatientVisits] = useState<Record<string, Visit | null>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
@@ -43,6 +47,20 @@ export default function PatientsPage() {
         setPatients(data)
         setError("")
       })
+      
+      // Fetch latest visit for each patient
+      const visitsMap: Record<string, Visit | null> = {}
+      for (const patient of data) {
+        if (patient.id) {
+          try {
+            const visits = await getVisitsByPatient(patient.id)
+            visitsMap[patient.id] = visits.length > 0 ? visits[0] : null
+          } catch (err) {
+            visitsMap[patient.id] = null
+          }
+        }
+      }
+      setPatientVisits(visitsMap)
     } catch (e) {
       setError("Failed to load patients")
     } finally {
@@ -146,6 +164,7 @@ export default function PatientsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumb />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Patients</h1>
@@ -288,12 +307,15 @@ export default function PatientsPage() {
               <th className="px-4 py-3">Age/Gen</th>
               <th className="px-4 py-3">Blood</th>
               <th className="px-4 py-3">City</th>
+              <th className="px-4 py-3">Latest Visit Details</th>
+              <th className="px-4 py-3">Medicines</th>
               <th className="px-4 py-3">Khata</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {patients.map((patient) => {
               const treatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
+              const latestVisit = patient.id ? patientVisits[patient.id] : null
 
               return (
                 <tr key={patient.id} onClick={() => router.push(`/patients/${patient.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
@@ -322,6 +344,34 @@ export default function PatientsPage() {
                   <td className="px-4 py-3 text-slate-600">{patient.age}{patient.gender?.[0] ? `/${patient.gender[0]}` : ""}</td>
                   <td className="px-4 py-3 text-slate-600">{patient.bloodGroup || "-"}</td>
                   <td className="px-4 py-3 text-slate-600">{patient.address?.city || "-"}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {latestVisit ? (
+                      <div className="space-y-1">
+                        {latestVisit.complaints && <p className="text-slate-700"><span className="font-semibold">Complaints:</span> {latestVisit.complaints}</p>}
+                        {latestVisit.diagnosis && <p className="text-slate-700"><span className="font-semibold">Diagnosis:</span> {latestVisit.diagnosis}</p>}
+                        {latestVisit.vitals?.bp && <p className="text-slate-700"><span className="font-semibold">BP:</span> {latestVisit.vitals.bp}</p>}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">No visit records</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {latestVisit && latestVisit.prescriptions && latestVisit.prescriptions.length > 0 ? (
+                      <div className="space-y-1">
+                        {latestVisit.prescriptions.slice(0, 2).map((med, idx) => (
+                          <div key={idx} className="text-slate-700">
+                            <p className="font-medium">{med.name}</p>
+                            <p className="text-slate-500">{med.dosage} - {med.frequency}</p>
+                          </div>
+                        ))}
+                        {latestVisit.prescriptions.length > 2 && (
+                          <p className="text-blue-600 font-medium">+{latestVisit.prescriptions.length - 2} more</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">No medicines</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {(patient.khataBalance ?? 0) !== 0 ? (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khataBalance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
@@ -333,7 +383,7 @@ export default function PatientsPage() {
               )
             })}
             {!loading && patients.length === 0 && (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No patients found. Add your first patient!</td></tr>
+              <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">No patients found. Add your first patient!</td></tr>
             )}
           </tbody>
         </table>
@@ -343,6 +393,7 @@ export default function PatientsPage() {
       <div className="lg:hidden space-y-3">
         {patients.map((patient) => {
           const treatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
+          const latestVisit = patient.id ? patientVisits[patient.id] : null
 
           return (
             <Link key={patient.id} href={`/patients/${patient.id}`} className="block bg-white rounded-2xl border border-slate-200 p-4 shadow-sm transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-0.5 hover:border-slate-300">
@@ -371,14 +422,51 @@ export default function PatientsPage() {
                   <span className="text-blue-600 font-bold">{patient.caseNumber}</span>
                 </div>
               </div>
+              
+              {/* Latest Visit Details */}
+              {latestVisit && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-lg text-xs space-y-2 border border-slate-100">
+                  {latestVisit.complaints && (
+                    <p><span className="font-semibold text-slate-700">Complaints:</span> <span className="text-slate-600">{latestVisit.complaints}</span></p>
+                  )}
+                  {latestVisit.diagnosis && (
+                    <p><span className="font-semibold text-slate-700">Diagnosis:</span> <span className="text-slate-600">{latestVisit.diagnosis}</span></p>
+                  )}
+                  {latestVisit.vitals?.bp && (
+                    <p><span className="font-semibold text-slate-700">BP:</span> <span className="text-slate-600">{latestVisit.vitals.bp}</span></p>
+                  )}
+                  {latestVisit.prescriptions && latestVisit.prescriptions.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <p className="font-semibold text-slate-700 mb-1">Medicines:</p>
+                      <div className="space-y-1">
+                        {latestVisit.prescriptions.slice(0, 2).map((med, idx) => (
+                          <p key={idx} className="text-slate-600">
+                            <span className="font-medium">{med.name}</span>
+                            <br />
+                            <span className="text-slate-500">{med.dosage} - {med.frequency}</span>
+                          </p>
+                        ))}
+                        {latestVisit.prescriptions.length > 2 && (
+                          <p className="text-blue-600 font-medium">+{latestVisit.prescriptions.length - 2} more medicines</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {(patient.khataBalance ?? 0) !== 0 && (
-                <div className="mt-2">
+                <div className="mt-3">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khataBalance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
                     Khata: {(patient.khataBalance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khataBalance || 0))}` : `Advance ${formatCurrency(patient.khataBalance || 0)}`}
                   </span>
                 </div>
               )}
-            </Link>
+
+              {/* Quick Links */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <QuickLinks patientId={patient.id} compact={true} />
+              </div>
           )
         })}
       </div>

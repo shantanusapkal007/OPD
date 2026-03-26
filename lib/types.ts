@@ -97,21 +97,14 @@ export interface Visit {
   diagnosis: string;
   prescriptions: Medicine[];
   vitals: Vitals;
-  lmp?: string; // Last Menstrual Period (for obstetric visits)
-  edd?: string; // Expected Delivery Date (LMP + 280 days)
   labTests?: string;
   investigationsAdvised?: string;
-  notes?: string; // Clinical notes/observations
   totalBill?: number; // Charge applied to Khata
   paymentStatus?: "paid" | "unpaid";
   advice?: string;
   referral?: string;
   followUpDate?: string;
   followUpMessageEnabled?: boolean;
-  // Audit Trail
-  isEdited?: boolean;
-  editedAt?: Timestamp;
-  editedBy?: string; // User ID who edited
   createdAt: Timestamp;
 }
 

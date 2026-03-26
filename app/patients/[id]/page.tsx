@@ -20,6 +20,7 @@ import { getVisitsByPatient } from "@/services/visit.service"
 import { getPaymentsByPatient } from "@/services/payment.service"
 import { getAppointmentsByPatient } from "@/services/appointment.service"
 import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/types"
+import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -143,6 +144,11 @@ export default function PatientDetailPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      <Breadcrumb items={[
+        { label: "Dashboard", href: "/" },
+        { label: "Patients", href: "/patients" },
+        { label: patient?.fullName || "Loading..." }
+      ]} />
       <Link href="/patients" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Patients
       </Link>

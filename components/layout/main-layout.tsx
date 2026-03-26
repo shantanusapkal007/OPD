@@ -4,6 +4,8 @@ import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { BottomNav } from "./bottom-nav"
 import { ToastContainer } from "@/components/ui/toast"
+import { CommandPalette } from "@/components/ui/command-palette"
+import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { useAuth } from "../providers/AuthProvider"
 import { canAccessPath } from "@/lib/access"
 import { usePathname, useRouter } from "next/navigation"
@@ -57,6 +59,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <BottomNav />
       </div>
       <ToastContainer />
+      <CommandPalette />
+      <FloatingActionButton />
     </div>
   )
 }
