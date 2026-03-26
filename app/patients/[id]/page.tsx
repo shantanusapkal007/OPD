@@ -21,6 +21,7 @@ import { getPaymentsByPatient } from "@/services/payment.service"
 import { getAppointmentsByPatient } from "@/services/appointment.service"
 import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/types"
 import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
+import { PatientMedicines } from "@/components/ui/patient-medicines"
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -39,6 +40,7 @@ export default function PatientDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [editGender, setEditGender] = useState("Male")
   const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
+  const [editMedicines, setEditMedicines] = useState<any[]>([])
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
@@ -48,6 +50,7 @@ export default function PatientDetailPage() {
     if (!nextPatient) return
     setEditGender(nextPatient.gender)
     setEditTreatmentType(getTreatmentType(nextPatient.caseNumber, nextPatient.treatmentType))
+    setEditMedicines(nextPatient.currentMedicines || [])
   }
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export default function PatientDetailPage() {
         if (p) {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
+          setEditMedicines(p.currentMedicines || [])
         }
       } catch (e) {
         setError("Failed to load patient details.")
@@ -108,6 +112,7 @@ export default function PatientDetailPage() {
         chronicDiseases: fd.get("chronicDiseases") as string || "",
         emergencyContact: fd.get("emergencyContact") as string || "",
         notes: fd.get("notes") as string || "",
+        currentMedicines: editMedicines,
       };
 
       if (editGender === "Female") {
@@ -221,6 +226,12 @@ export default function PatientDetailPage() {
           </div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
+          
+          <div className="pt-3 border-t border-slate-100">
+            <label className="text-sm font-medium text-slate-700 block mb-3">Overall Medicines</label>
+            <PatientMedicines medicines={editMedicines} onMedicinesChange={setEditMedicines} />
+          </div>
+
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
             <Button type="button" variant="outline" onClick={() => { setIsEditModalOpen(false); resetEditFormState() }} disabled={isSaving}>Cancel</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save Changes"}</Button>
@@ -360,6 +371,28 @@ export default function PatientDetailPage() {
             <div className="col-span-2"><span className="text-xs font-semibold text-slate-400 uppercase">Notes</span><p className="text-slate-700 mt-0.5">{patient.notes}</p></div>
           )}
         </div>
+
+        {/* Overall Medicines Section */}
+        {patient.currentMedicines && patient.currentMedicines.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Pill className="w-4 h-4 text-blue-600" /> Overall Medicines
+            </h3>
+            <div className="space-y-3">
+              {patient.currentMedicines.map((med, idx) => (
+                <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-slate-900">{med.name}</h4>
+                  <div className="text-sm text-slate-600 mt-2 space-y-1">
+                    <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
+                    <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
+                    <p><span className="font-medium">Duration:</span> {med.days} days</p>
+                    {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
           <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>

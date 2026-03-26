@@ -41,6 +41,7 @@ export interface Patient {
   menstrualCycleDays?: number; // Menstrual cycle length in days
   photo?: string; // URL from Firebase Storage
   notes?: string;
+  currentMedicines?: Medicine[]; // Overall/regular medicines for the patient
   khataBalance?: number; // Ledger balance (Negative = Owes Money, Positive = Advance)
   createdAt: Timestamp;
   updatedAt: Timestamp;
