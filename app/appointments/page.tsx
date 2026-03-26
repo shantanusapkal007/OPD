@@ -13,6 +13,7 @@ import { getAppointmentsByDate, addAppointment, updateAppointmentStatus } from "
 import { searchPatients, addPatient } from "@/services/patient.service"
 import { Timestamp } from "firebase/firestore"
 import type { Appointment, Patient } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
 
 export default function AppointmentsPage() {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false)
@@ -28,6 +29,7 @@ export default function AppointmentsPage() {
   const [isQuickAddPatient, setIsQuickAddPatient] = useState(false)
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const router = useRouter()
+  const { showToast } = useToast()
 
   const resetBookingState = () => {
     setSelectedPatient(null)
@@ -73,7 +75,7 @@ export default function AppointmentsPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!selectedPatient) { alert("Please select a patient"); return }
+    if (!selectedPatient) { showToast("Please select a patient", "warning"); return }
     setIsSaving(true)
     const form = e.currentTarget
     const fd = new FormData(form)
@@ -98,7 +100,7 @@ export default function AppointmentsPage() {
       resetBookingState()
       fetchAppointments()
     } catch (e: any) {
-      alert(e.message || "Failed to book appointment.")
+      showToast(e.message || "Failed to book appointment.", "error")
     } finally {
       setIsSaving(false)
     }
@@ -140,7 +142,7 @@ export default function AppointmentsPage() {
               <Button type="button" size="sm" className="w-full" disabled={isSaving} onClick={async () => {
                 const name = (document.getElementById('quickName') as HTMLInputElement).value.trim();
                 const mobile = (document.getElementById('quickMobile') as HTMLInputElement).value.trim();
-                if (!name || mobile.length < 10) { alert('Valid name and 10-digit mobile required'); return; }
+                if (!name || mobile.length < 10) { showToast('Valid name and 10-digit mobile required', 'warning'); return; }
                 setIsSaving(true);
                 try {
                   const newPatient = {
@@ -149,7 +151,7 @@ export default function AppointmentsPage() {
                   const newId = await addPatient(newPatient);
                   setSelectedPatient({ id: newId, ...newPatient });
                   setIsQuickAddPatient(false);
-                } catch (e: any) { alert(e.message); } finally { setIsSaving(false); }
+                } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
               }}>{isSaving ? "Saving..." : "Save & Select"}</Button>
             </div>
           ) : (
@@ -261,7 +263,7 @@ export default function AppointmentsPage() {
                     await updateAppointmentStatus(apt.id!, e.target.value as any)
                     await fetchAppointments()
                   } catch (error: any) {
-                    alert(error.message || "Failed to update appointment status.")
+                    showToast(error.message || "Failed to update appointment status.", "error")
                   } finally {
                     setUpdatingStatusId(null)
                   }

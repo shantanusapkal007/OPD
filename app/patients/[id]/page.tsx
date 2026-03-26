@@ -22,6 +22,7 @@ import { getAppointmentsByPatient } from "@/services/appointment.service"
 import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/types"
 import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
 import { PatientMedicines } from "@/components/ui/patient-medicines"
+import { useToast } from "@/components/ui/toast"
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -45,6 +46,7 @@ export default function PatientDetailPage() {
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
+  const { showToast } = useToast()
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
@@ -132,7 +134,7 @@ export default function PatientDetailPage() {
       resetEditFormState(updated)
       setIsEditModalOpen(false)
     } catch (e: any) {
-      alert(e.message || "Failed to update patient.")
+      showToast(e.message || "Failed to update patient.", "error")
     } finally {
       setIsSaving(false)
     }

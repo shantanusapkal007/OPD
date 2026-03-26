@@ -37,6 +37,47 @@ export async function getVisitsByPatient(patientId: string): Promise<Visit[]> {
   return results.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 }
 
+/**
+ * Fetch the latest visit for multiple patients in batched queries.
+ * Firestore 'in' operator supports max 10 values per query,
+ * so we chunk the patient IDs accordingly.
+ */
+export async function getLatestVisitsForPatients(
+  patientIds: string[]
+): Promise<Record<string, Visit | null>> {
+  const result: Record<string, Visit | null> = {};
+  if (patientIds.length === 0) return result;
+
+  // Initialize all to null
+  for (const id of patientIds) {
+    result[id] = null;
+  }
+
+  // Firestore 'in' supports max 10 values per query
+  const CHUNK_SIZE = 10;
+  const chunks: string[][] = [];
+  for (let i = 0; i < patientIds.length; i += CHUNK_SIZE) {
+    chunks.push(patientIds.slice(i, i + CHUNK_SIZE));
+  }
+
+  const batchPromises = chunks.map(async (chunk) => {
+    const q = query(collection(db, COL), where("patientId", "in", chunk));
+    const snap = await getDocs(q);
+    const visits = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Visit));
+
+    // For each patient in this chunk, find their latest visit
+    for (const pid of chunk) {
+      const patientVisits = visits
+        .filter((v) => v.patientId === pid)
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      result[pid] = patientVisits.length > 0 ? patientVisits[0] : null;
+    }
+  });
+
+  await Promise.all(batchPromises);
+  return result;
+}
+
 export async function addVisit(data: Omit<Visit, "id" | "createdAt">): Promise<string> {
   const patientName = data.patientName?.trim();
   const complaints = data.complaints?.trim();

@@ -5,16 +5,18 @@ import { Building2, Clock, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
+import { useToast } from "@/components/ui/toast"
 
 export default function SettingsPage() {
   const [savingForm, setSavingForm] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   const handleSave = (e: React.FormEvent, formName: string) => {
     e.preventDefault()
     setSavingForm(formName)
     setTimeout(() => {
       setSavingForm(null)
-      alert("Settings saved successfully!")
+      showToast("Settings saved successfully!", "success")
     }, 150)
   }
 

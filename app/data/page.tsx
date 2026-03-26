@@ -9,6 +9,7 @@ import { getPatients, addPatient } from "@/services/patient.service"
 import { getVisits } from "@/services/visit.service"
 import { getPayments } from "@/services/payment.service"
 import { getAppointments } from "@/services/appointment.service"
+import { useToast } from "@/components/ui/toast"
 
 const EXPORT_CARD_STYLES = {
   blue: {
@@ -87,6 +88,7 @@ export default function DataPage() {
   const [importing, setImporting] = useState(false)
   const [importPreview, setImportPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   const resetImportSelection = () => {
     setImportPreview(null)
@@ -127,7 +129,7 @@ export default function DataPage() {
       ])
       downloadCSV(`patients_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
-      alert("Export failed")
+      showToast("Export failed", "error")
     } finally {
       setExporting("")
     }
@@ -162,7 +164,7 @@ export default function DataPage() {
       ])
       downloadCSV(`visits_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
-      alert("Export failed")
+      showToast("Export failed", "error")
     } finally {
       setExporting("")
     }
@@ -184,7 +186,7 @@ export default function DataPage() {
       ])
       downloadCSV(`payments_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
-      alert("Export failed")
+      showToast("Export failed", "error")
     } finally {
       setExporting("")
     }
@@ -206,7 +208,7 @@ export default function DataPage() {
       ])
       downloadCSV(`appointments_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
-      alert("Export failed")
+      showToast("Export failed", "error")
     } finally {
       setExporting("")
     }

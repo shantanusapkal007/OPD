@@ -14,10 +14,12 @@ import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { getPatients, addPatient, searchPatients } from "@/services/patient.service"
 import { uploadFileToStorage, validateImageFiles } from "@/services/storage.service"
-import { getVisitsByPatient } from "@/services/visit.service"
-import type { Patient, TreatmentType, Visit } from "@/lib/types"
+import { getLatestVisitsForPatients } from "@/services/visit.service"
+import type { Patient, TreatmentType, Visit, Medicine } from "@/lib/types"
 import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
 import { QuickLinks } from "@/components/ui/quick-links"
+import { useToast } from "@/components/ui/toast"
+import { PatientMedicines } from "@/components/ui/patient-medicines"
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 const labelClass = "text-sm font-medium text-slate-700"
@@ -35,9 +37,11 @@ export default function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [regMedicines, setRegMedicines] = useState<Medicine[]>([])
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 120)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const { showToast } = useToast()
 
   const fetchPatients = useCallback(async () => {
     setLoading(true)
@@ -48,19 +52,12 @@ export default function PatientsPage() {
         setError("")
       })
       
-      // Fetch latest visit for each patient
-      const visitsMap: Record<string, Visit | null> = {}
-      for (const patient of data) {
-        if (patient.id) {
-          try {
-            const visits = await getVisitsByPatient(patient.id)
-            visitsMap[patient.id] = visits.length > 0 ? visits[0] : null
-          } catch (err) {
-            visitsMap[patient.id] = null
-          }
-        }
+      // Fetch latest visits in batch instead of N+1 sequential calls
+      const patientIds = data.map(p => p.id).filter((id): id is string => !!id)
+      if (patientIds.length > 0) {
+        const visitsMap = await getLatestVisitsForPatients(patientIds)
+        setPatientVisits(visitsMap)
       }
-      setPatientVisits(visitsMap)
     } catch (e) {
       setError("Failed to load patients")
     } finally {
@@ -83,6 +80,7 @@ export default function PatientsPage() {
     setSelectedTreatmentType("Allopathic")
     setPhotoFile(null)
     setPhotoPreview(null)
+    setRegMedicines([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -102,7 +100,7 @@ export default function PatientsPage() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
-      alert(error.message || "Invalid patient photo.")
+      showToast(error.message || "Invalid patient photo.", "error")
     }
   }
 
@@ -139,6 +137,7 @@ export default function PatientsPage() {
         allergies: fd.get("allergies") as string || "",
         chronicDiseases: fd.get("chronicDiseases") as string || "",
         emergencyContact: fd.get("emergencyContact") as string || "",
+        currentMedicines: regMedicines.filter(m => m.name.trim() !== ""),
         notes: fd.get("notes") as string || "",
       };
 
@@ -156,7 +155,7 @@ export default function PatientsPage() {
       resetPatientFormState()
       fetchPatients()
     } catch (e: any) {
-      alert(e.message || "Failed to save patient. Please try again.")
+      showToast(e.message || "Failed to save patient. Please try again.", "error")
     } finally {
       setIsSaving(false)
     }
@@ -276,6 +275,12 @@ export default function PatientsPage() {
           </div>
           <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronicDiseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className={labelClass}>Notes</label><textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional notes..." {...FORM_FIELD_PROPS} /></div>
+
+          {/* Current Medicines */}
+          <div className="pt-3 border-t border-slate-100">
+            <label className={labelClass + " block mb-3"}>Current Medicines</label>
+            <PatientMedicines medicines={regMedicines} onMedicinesChange={setRegMedicines} />
+          </div>
 
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
             <Button type="button" variant="outline" onClick={() => { setIsAddModalOpen(false); resetPatientFormState() }} disabled={isSaving}>Cancel</Button>

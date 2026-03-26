@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Plus, Trash2, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Medicine } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
 
 interface PatientMedicinesProps {
   medicines: Medicine[] | undefined
@@ -14,6 +15,7 @@ interface PatientMedicinesProps {
 export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly = false }: PatientMedicinesProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [formData, setFormData] = useState<Medicine | null>(null)
+  const { showToast } = useToast()
 
   const meds = medicines || []
 
@@ -29,7 +31,7 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
 
   const handleSave = () => {
     if (!formData || !formData.name.trim() || !formData.dosage.trim() || !formData.frequency.trim()) {
-      alert("Please fill in all required fields")
+      showToast("Please fill in all required fields", "warning")
       return
     }
 

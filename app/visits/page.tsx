@@ -13,6 +13,7 @@ import { getVisits, addVisit, updateVisitImages } from "@/services/visit.service
 import { searchPatients, addPatient } from "@/services/patient.service"
 import { uploadFilesToStorage, validateImageFiles } from "@/services/storage.service"
 import type { Visit, Patient, Medicine } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
 
 const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 const lbl = "text-sm font-medium text-slate-700"
@@ -126,6 +127,7 @@ export default function VisitsPage() {
   const [visits, setVisits] = useState<Visit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const { showToast } = useToast()
 
   const [patientSearch, setPatientSearch] = useState("")
   const [patientResults, setPatientResults] = useState<Patient[]>([])
@@ -288,7 +290,7 @@ export default function VisitsPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!selectedPatient) { alert("Please select a patient"); return }
+    if (!selectedPatient) { showToast("Please select a patient", "warning"); return }
 
     setIsSaving(true)
     setUploadError("")
@@ -360,7 +362,7 @@ export default function VisitsPage() {
       resetVisitFormState()
       fetchVisits()
     } catch (e: any) {
-      alert(e.message || "Failed to record visit.")
+      showToast(e.message || "Failed to record visit.", "error")
     } finally {
       setIsUploadingImages(false)
       setIsSaving(false)
@@ -398,7 +400,7 @@ export default function VisitsPage() {
               <Button type="button" size="sm" className="w-full" disabled={isSaving} onClick={async () => {
                 const name = (document.getElementById('quickName') as HTMLInputElement).value.trim();
                 const mobile = (document.getElementById('quickMobile') as HTMLInputElement).value.trim();
-                if (!name || mobile.length < 10) { alert('Valid name and 10-digit mobile required'); return; }
+                if (!name || mobile.length < 10) { showToast('Valid name and 10-digit mobile required', 'warning'); return; }
                 setIsSaving(true);
                 try {
                   const newPatient = {
@@ -407,7 +409,7 @@ export default function VisitsPage() {
                   const newId = await addPatient(newPatient);
                   setSelectedPatient({ id: newId, ...newPatient });
                   setIsQuickAddPatient(false);
-                } catch (e: any) { alert(e.message); } finally { setIsSaving(false); }
+                } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
               }}>{isSaving ? "Saving..." : "Save & Select"}</Button>
             </div>
           ) : (

@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/utils"
 import { getPayments, addPayment, getPaymentStats } from "@/services/payment.service"
 import { searchPatients, getPatient } from "@/services/patient.service"
 import type { Payment, Patient, PaymentMethod, PaymentStatus } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
 
 export default function PaymentsPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -25,6 +26,7 @@ export default function PaymentsPage() {
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
+  const { showToast } = useToast()
 
   const resetPaymentState = () => {
     setSelectedPatient(null)
@@ -71,7 +73,7 @@ export default function PaymentsPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!selectedPatient) { alert("Please select a patient"); return }
+    if (!selectedPatient) { showToast("Please select a patient", "warning"); return }
     setIsSaving(true)
     const form = e.currentTarget
     const fd = new FormData(form)
@@ -97,7 +99,7 @@ export default function PaymentsPage() {
       resetPaymentState()
       fetchPayments()
     } catch (e: any) {
-      alert(e.message || "Failed to record payment.")
+      showToast(e.message || "Failed to record payment.", "error")
     } finally {
       setIsSaving(false)
     }
@@ -110,13 +112,14 @@ export default function PaymentsPage() {
       let phone = patient?.mobileNumber || ""
 
       if (!phone || phone === "0000000000") {
-        phone = window.prompt("Enter mobile number to send WhatsApp bill:") || ""
+        showToast("No phone number on file for this patient.", "error")
+        return
       }
       
       phone = phone.replace(/\D/g, '')
 
       if (!phone || phone.length < 10) {
-        if (phone.length > 0) alert("Invalid phone number.")
+        showToast("Invalid phone number.", "error")
         return
       }
 
@@ -137,7 +140,7 @@ Thank you for your visit!`
       const url = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`
       window.open(url, '_blank')
     } catch (err) {
-      alert("Failed to load patient details.")
+      showToast("Failed to load patient details.", "error")
     } finally {
       setIsSendingWhatsApp(null)
     }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Bell, ChevronDown, LogOut } from "lucide-react"
+import { Bell, ChevronDown, LogOut, Search } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
@@ -21,6 +21,10 @@ export function Header() {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
+
+  const openCommandPalette = () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))
+  }
   
   const getPageTitle = () => {
     if (pathname === "/") return "Dashboard"
@@ -46,6 +50,16 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3 ml-auto">
+        <button
+          onClick={openCommandPalette}
+          className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+        >
+          <Search className="w-4 h-4" />
+          <span className="hidden md:inline">Search...</span>
+          <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+            Ctrl K
+          </kbd>
+        </button>
         <button className="relative rounded-full p-2 text-slate-600 transition-colors hover:bg-slate-100">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>

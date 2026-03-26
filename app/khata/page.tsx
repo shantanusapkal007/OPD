@@ -5,16 +5,21 @@ import { BookOpen, IndianRupee, MessageSquare, ChevronRight, Calculator } from "
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { Modal } from "@/components/ui/modal"
 import Link from "next/link"
 import { getKhataPatients } from "@/services/patient.service"
 import { addPayment } from "@/services/payment.service"
 import type { Patient } from "@/lib/types"
+import { useToast } from "@/components/ui/toast"
 
 export default function KhataBookPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [clearingId, setClearingId] = useState<string | null>(null)
+  const [clearDuePatient, setClearDuePatient] = useState<Patient | null>(null)
+  const [clearDueAmount, setClearDueAmount] = useState("")
+  const { showToast } = useToast()
 
   useEffect(() => {
     async function fetchKhata() {
@@ -33,28 +38,29 @@ export default function KhataBookPage() {
 
   const handleClearDue = async (patient: Patient) => {
     if (!patient.id || !patient.khataBalance || patient.khataBalance >= 0) return;
-    
     const maxAmount = Math.abs(patient.khataBalance);
-    const amountStr = window.prompt(`Enter amount received from ${patient.fullName} (Max: ₹${maxAmount}):`, maxAmount.toString());
-    
-    if (!amountStr) return; // User cancelled
-    
-    const amount = Number(amountStr);
+    setClearDuePatient(patient)
+    setClearDueAmount(maxAmount.toString())
+  }
+
+  const submitClearDue = async () => {
+    if (!clearDuePatient?.id) return;
+    const maxAmount = Math.abs(clearDuePatient.khataBalance || 0);
+    const amount = Number(clearDueAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid amount greater than 0.");
+      showToast("Please enter a valid amount greater than 0.", "warning");
       return;
     }
-    
     if (amount > maxAmount) {
-      alert(`Amount cannot exceed the total due of ₹${maxAmount}`);
+      showToast(`Amount cannot exceed the total due of ₹${maxAmount}`, "warning");
       return;
     }
 
-    setClearingId(patient.id);
+    setClearingId(clearDuePatient.id);
     try {
       await addPayment({
-        patientId: patient.id,
-        patientName: patient.fullName,
+        patientId: clearDuePatient.id,
+        patientName: clearDuePatient.fullName,
         amount: amount,
         paymentMethod: "cash",
         status: "paid",
@@ -64,10 +70,13 @@ export default function KhataBookPage() {
       
       const data = await getKhataPatients();
       setPatients(data);
+      showToast(`₹${amount} received from ${clearDuePatient.fullName}`, "success");
     } catch (e: any) {
-      alert(e.message || "Failed to clear due");
+      showToast(e.message || "Failed to clear due", "error");
     } finally {
       setClearingId(null);
+      setClearDuePatient(null);
+      setClearDueAmount("");
     }
   }
 
@@ -88,6 +97,22 @@ export default function KhataBookPage() {
           <p className="text-sm text-slate-500">Track pending dues and advance payments across all patients</p>
         </div>
       </div>
+
+      {/* Clear Due Modal */}
+      <Modal isOpen={!!clearDuePatient} onClose={() => { setClearDuePatient(null); setClearDueAmount(""); }} title={`Receive Payment — ${clearDuePatient?.fullName || ""}`}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">Enter amount received from <strong>{clearDuePatient?.fullName}</strong>:</p>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">Amount (₹)</label>
+            <input type="number" value={clearDueAmount} onChange={(e) => setClearDueAmount(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter amount" max={clearDuePatient ? Math.abs(clearDuePatient.khataBalance || 0) : undefined} min={1} />
+            <p className="text-xs text-slate-400">Max: ₹{clearDuePatient ? Math.abs(clearDuePatient.khataBalance || 0) : 0}</p>
+          </div>
+          <div className="pt-2 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => { setClearDuePatient(null); setClearDueAmount(""); }}>Cancel</Button>
+            <Button onClick={submitClearDue} disabled={!!clearingId}>{ clearingId ? "Processing..." : "Receive Payment"}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-red-100 bg-red-50/30">
