@@ -467,9 +467,11 @@ export default function PatientsPage() {
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <QuickLinks patientId={patient.id} compact={true} />
               </div>
+            </Link>
           )
         })}
       </div>
     </div>
   )
 }
+

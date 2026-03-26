@@ -141,11 +141,6 @@ export function validateVisitBasics(data: Partial<Visit>): { valid: boolean; err
     errors.push("Total bill must be a valid non-negative amount");
   }
 
-  const lmpValidation = validateLMP(data.lmp);
-  if (!lmpValidation.valid) {
-    errors.push(`LMP: ${lmpValidation.error}`);
-  }
-
   const followUpValidation = validateFollowUpDate(data.followUpDate);
   if (!followUpValidation.valid) {
     errors.push(`Follow-up: ${followUpValidation.error}`);

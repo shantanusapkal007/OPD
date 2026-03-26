@@ -20,7 +20,7 @@ interface EditVisitModalProps {
 export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: EditVisitModalProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [medicines, setMedicines] = useState<Medicine[]>(visit.prescriptions || [])
-  const [showEDD, setShowEDD] = useState(!!visit.edd)
+  const [showEDD, setShowEDD] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
 
   const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -103,16 +103,9 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
       const updateData: Partial<Visit> = {
         complaints,
         diagnosis,
-        notes,
         advice,
         prescriptions: medicines.length > 0 ? medicines : [],
         followUpDate: followUpDate || undefined,
-      }
-
-      // Add LMP and EDD if provided
-      if (lmp) {
-        updateData.lmp = lmp
-        updateData.edd = calculateEDD(lmp)
       }
 
       await updateVisit(visit.id!, updateData, userId)
@@ -121,9 +114,6 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
       const updatedVisit: Visit = {
         ...visit,
         ...updateData,
-        editedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any,
-        editedBy: userId,
-        isEdited: true,
       }
 
       onSaved(updatedVisit)
@@ -173,27 +163,6 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
             required
             {...FORM_FIELD_PROPS}
           />
-        </div>
-
-        {/* LMP & EDD */}
-        <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-pink-800">LMP (Last Menstrual Period)</label>
-            <input
-              type="date"
-              name="lmp"
-              defaultValue={visit.lmp}
-              className={ic}
-              {...FORM_FIELD_PROPS}
-            />
-            <p className="text-xs text-pink-700">Optional: Used for obstetric cases</p>
-          </div>
-
-          {showEDD && visit.lmp && (
-            <div className="p-2 bg-pink-100 rounded border border-pink-200 text-sm text-pink-900">
-              <strong>EDD:</strong> {calculateEDD(visit.lmp)}
-            </div>
-          )}
         </div>
 
         {/* Medicines */}
@@ -281,19 +250,6 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
           >
             <Plus className="w-4 h-4" /> Add Medicine
           </button>
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Clinical Notes</label>
-          <textarea
-            name="notes"
-            defaultValue={visit.notes}
-            className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-            placeholder="Additional observations, findings, etc."
-            {...FORM_FIELD_PROPS}
-          />
         </div>
 
         {/* Advice */}
