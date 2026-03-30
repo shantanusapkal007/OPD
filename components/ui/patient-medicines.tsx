@@ -72,21 +72,23 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
     <div className="space-y-2 border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-2">
       {meds.length === 0 && <p className="text-xs text-center text-slate-400 py-2">No medicines currently added.</p>}
       {meds.map((med, idx) => (
-        <div key={idx} className="flex gap-2 items-start bg-white p-2 rounded shadow-sm border border-slate-100">
-          <div className="flex-1 space-y-2">
-            <div className="grid grid-cols-12 gap-2">
-              <input className="col-span-12 sm:col-span-4 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Medicine Name" value={med.name} onChange={e => updateMedicine(idx, 'name', e.target.value)} />
-              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Potency (30C)" value={med.potency || ""} onChange={e => updateMedicine(idx, 'potency', e.target.value)} />
-              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Dose (1-0-1)" value={med.dosage} onChange={e => updateMedicine(idx, 'dosage', e.target.value)} />
-              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Freq (BD)" value={med.frequency} onChange={e => updateMedicine(idx, 'frequency', e.target.value)} />
-              <div className="col-span-6 sm:col-span-2 flex items-center gap-1">
-                <input type="number" className="w-full h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Days" value={med.days || ""} onChange={e => updateMedicine(idx, 'days', parseInt(e.target.value) || 0)} />
-                <span className="text-xs text-slate-500">d</span>
+        <div key={idx} className="bg-white p-3 rounded shadow-sm border border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 space-y-2">
+              <input className="w-full h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Medicine Name" value={med.name} onChange={e => updateMedicine(idx, 'name', e.target.value)} />
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <input className="h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Potency (30C)" value={med.potency || ""} onChange={e => updateMedicine(idx, 'potency', e.target.value)} />
+                <input className="h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Dose (1-0-1)" value={med.dosage} onChange={e => updateMedicine(idx, 'dosage', e.target.value)} />
+                <input className="h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Freq (BD)" value={med.frequency} onChange={e => updateMedicine(idx, 'frequency', e.target.value)} />
+                <div className="flex items-center gap-2">
+                  <input type="number" className="w-full h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Days" value={med.days || ""} onChange={e => updateMedicine(idx, 'days', parseInt(e.target.value) || 0)} />
+                  <span className="text-xs text-slate-500 shrink-0">days</span>
+                </div>
               </div>
+              <input className="w-full h-9 px-3 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Notes (e.g., After food)" value={med.notes || ""} onChange={e => updateMedicine(idx, 'notes', e.target.value)} />
             </div>
-            <input className="w-full h-8 px-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500" placeholder="Notes (e.g., After food)" value={med.notes || ""} onChange={e => updateMedicine(idx, 'notes', e.target.value)} />
+            <button type="button" onClick={() => handleDelete(idx)} className="text-slate-300 hover:text-red-500 p-1 shrink-0"><XCircle className="w-5 h-5" /></button>
           </div>
-          <button type="button" onClick={() => handleDelete(idx)} className="text-slate-300 hover:text-red-500 p-1"><XCircle className="w-5 h-5" /></button>
         </div>
       ))}
       <Button type="button" variant="ghost" size="sm" onClick={handleAdd} className="w-full text-blue-600 text-xs mt-1 border border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 focus:ring-0">

@@ -565,7 +565,7 @@ export default function PatientDetailPage() {
             </p>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-6">
             <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
