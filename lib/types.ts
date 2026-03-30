@@ -75,6 +75,7 @@ export interface Appointment {
 // ─── Visits (Case Papers) ────────────────────────────────
 export interface Medicine {
   name: string;
+  potency?: string;
   dosage: string;
   frequency: string;
   days: number;

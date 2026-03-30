@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Users, Pill, Calendar, IndianRupee, BookOpen, Home, ArrowRight } from "lucide-react"
 import { searchPatients } from "@/services/patient.service"
@@ -29,11 +29,13 @@ export function CommandPalette() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault()
-        setIsOpen(!isOpen)
+        setIsOpen((prev) => !prev)
         setSearchTerm("")
+        setSelectedIndex(0)
       }
       if (e.key === "Escape" && isOpen) {
         setIsOpen(false)
+        setSelectedIndex(0)
       }
     }
 
@@ -68,7 +70,7 @@ export function CommandPalette() {
   }, [searchTerm])
 
   // Build command items
-  const staticCommands: CommandItem[] = [
+  const staticCommands = useMemo<CommandItem[]>(() => [
     {
       id: "dashboard",
       title: "Go to Dashboard",
@@ -111,25 +113,29 @@ export function CommandPalette() {
       action: () => { router.push("/khata"); setIsOpen(false) },
       category: "Navigation"
     },
-  ]
+  ], [router])
 
-  const patientCommands: CommandItem[] = patients.map(p => ({
+  const patientCommands = useMemo<CommandItem[]>(() => patients.map(p => ({
     id: `patient-${p.id}`,
     title: p.fullName,
     description: `Case: ${p.caseNumber} | ${p.mobileNumber}`,
     icon: <Users className="w-4 h-4" />,
     action: () => { router.push(`/patients/${p.id}`); setIsOpen(false) },
     category: "Patients"
-  }))
+  })), [patients, router])
 
   // Filter commands based on search
-  const filteredCommands = [
+  const filteredCommands = useMemo(() => [
     ...staticCommands.filter(cmd =>
       cmd.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cmd.category.toLowerCase().includes(searchTerm.toLowerCase())
     ),
     ...patientCommands
-  ]
+  ], [patientCommands, searchTerm, staticCommands])
+
+  const activeIndex = filteredCommands.length === 0
+    ? 0
+    : Math.min(selectedIndex, filteredCommands.length - 1)
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -138,28 +144,25 @@ export function CommandPalette() {
 
       if (e.key === "ArrowDown") {
         e.preventDefault()
+        if (filteredCommands.length === 0) return
         setSelectedIndex(i => (i + 1) % filteredCommands.length)
       }
       if (e.key === "ArrowUp") {
         e.preventDefault()
+        if (filteredCommands.length === 0) return
         setSelectedIndex(i => (i - 1 + filteredCommands.length) % filteredCommands.length)
       }
       if (e.key === "Enter") {
         e.preventDefault()
-        if (filteredCommands[selectedIndex]) {
-          filteredCommands[selectedIndex].action()
+        if (filteredCommands[activeIndex]) {
+          filteredCommands[activeIndex].action()
         }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isOpen, filteredCommands, selectedIndex])
-
-  // Reset index when search changes
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [searchTerm])
+  }, [activeIndex, filteredCommands, isOpen])
 
   if (!isOpen) return null
 
@@ -186,7 +189,10 @@ export function CommandPalette() {
                 type="text"
                 placeholder="Search patients or commands... (Esc to close)"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setSelectedIndex(0)
+                }}
                 className="flex-1 bg-transparent outline-none text-sm text-slate-900 placeholder-slate-500"
               />
             </div>
@@ -210,13 +216,13 @@ export function CommandPalette() {
                     <button
                       onClick={() => cmd.action()}
                       className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                        selectedIndex === index
+                        activeIndex === index
                           ? "bg-blue-50 text-blue-900"
                           : "text-slate-900 hover:bg-slate-50"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`${selectedIndex === index ? "text-blue-600" : "text-slate-400"}`}>
+                        <span className={`${activeIndex === index ? "text-blue-600" : "text-slate-400"}`}>
                           {cmd.icon}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -225,7 +231,7 @@ export function CommandPalette() {
                             <p className="text-xs text-slate-500 truncate">{cmd.description}</p>
                           )}
                         </div>
-                        {selectedIndex === index && (
+                        {activeIndex === index && (
                           <ArrowRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
                         )}
                       </div>
@@ -239,7 +245,7 @@ export function CommandPalette() {
           {/* Footer */}
           <div className="border-t border-slate-200 px-4 py-2 bg-slate-50 text-xs text-slate-500 flex items-center justify-between">
             <span>
-              {filteredCommands.length > 0 && `${selectedIndex + 1} of ${filteredCommands.length}`}
+              {filteredCommands.length > 0 && `${activeIndex + 1} of ${filteredCommands.length}`}
             </span>
             <span className="flex items-center gap-2">
               <kbd className="px-2 py-1 bg-white border border-slate-200 rounded text-xs">↑↓</kbd>
