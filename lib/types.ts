@@ -37,18 +37,18 @@ export interface Patient {
   allergies?: string;
   chronicDiseases?: string;
   emergencyContact?: string;
-  lmp?: string; // Last Menstrual Period for females
-  menstrualCycleDays?: number; // Menstrual cycle length in days
+  lmp?: string | null; // Last Menstrual Period for females
+  menstrualCycleDays?: number | null; // Menstrual cycle length in days
   photo?: string; // URL from Firebase Storage
   notes?: string;
   currentMedicines?: Medicine[]; // Overall/regular medicines for the patient
   // Clinical vitals (patient-level quick access)
   presentComplaints?: string;
-  weight?: number; // kg
-  heightCm?: number; // cm
+  weight?: number | null; // kg
+  heightCm?: number | null; // cm
   bp?: string; // e.g. "120/80"
-  temperature?: number; // °F
-  spo2?: number; // %
+  temperature?: number | null; // °F
+  spo2?: number | null; // %
   repetition?: string; // Medicine repetition schedule
   khataBalance?: number; // Ledger balance (Negative = Owes Money, Positive = Advance)
   createdAt: Timestamp;

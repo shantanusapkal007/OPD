@@ -19,7 +19,7 @@ import { getPatient, updatePatient, deletePatient, getPatientLinkedRecordCounts 
 import { getVisitsByPatient } from "@/services/visit.service"
 import { getPaymentsByPatient } from "@/services/payment.service"
 import { getAppointmentsByPatient } from "@/services/appointment.service"
-import type { Patient, Visit, Payment, Appointment, TreatmentType } from "@/lib/types"
+import type { Patient, Visit, Payment, Appointment, TreatmentType, Medicine } from "@/lib/types"
 import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
 import { PatientMedicines } from "@/components/ui/patient-medicines"
 import { useToast } from "@/components/ui/toast"
@@ -41,7 +41,7 @@ export default function PatientDetailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [editGender, setEditGender] = useState("Male")
   const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
-  const [editMedicines, setEditMedicines] = useState<any[]>([])
+  const [editMedicines, setEditMedicines] = useState<Medicine[]>([])
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
@@ -57,6 +57,24 @@ export default function PatientDetailPage() {
   })
   const [isSavingClinical, setIsSavingClinical] = useState(false)
   const { showToast } = useToast()
+
+  const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
+    presentComplaints: nextPatient?.presentComplaints || "",
+    weight: nextPatient?.weight != null ? String(nextPatient.weight) : "",
+    heightCm: nextPatient?.heightCm != null ? String(nextPatient.heightCm) : "",
+    bp: nextPatient?.bp || "",
+    temperature: nextPatient?.temperature != null ? String(nextPatient.temperature) : "",
+    spo2: nextPatient?.spo2 != null ? String(nextPatient.spo2) : "",
+    repetition: nextPatient?.repetition || "",
+  })
+
+  const parseOptionalNumber = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    const parsed = Number.parseFloat(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
@@ -84,16 +102,7 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
           setEditMedicines(p.currentMedicines || [])
-          // Initialize clinical details form
-          setClinicalDetailsFormData({
-            presentComplaints: p.presentComplaints || "",
-            weight: p.weight ? String(p.weight) : "",
-            heightCm: p.heightCm ? String(p.heightCm) : "",
-            bp: p.bp || "",
-            temperature: p.temperature ? String(p.temperature) : "",
-            spo2: p.spo2 ? String(p.spo2) : "",
-            repetition: p.repetition || "",
-          })
+          setClinicalDetailsFormData(buildClinicalDetailsFormData(p))
         }
       } catch (e) {
         setError("Failed to load patient details.")
@@ -167,29 +176,18 @@ export default function PatientDetailPage() {
     try {
       const updateData = {
         presentComplaints: clinicalDetailsFormData.presentComplaints.trim(),
-        weight: clinicalDetailsFormData.weight ? parseFloat(clinicalDetailsFormData.weight) : undefined,
-        heightCm: clinicalDetailsFormData.heightCm ? parseFloat(clinicalDetailsFormData.heightCm) : undefined,
+        weight: parseOptionalNumber(clinicalDetailsFormData.weight),
+        heightCm: parseOptionalNumber(clinicalDetailsFormData.heightCm),
         bp: clinicalDetailsFormData.bp.trim(),
-        temperature: clinicalDetailsFormData.temperature ? parseFloat(clinicalDetailsFormData.temperature) : undefined,
-        spo2: clinicalDetailsFormData.spo2 ? parseFloat(clinicalDetailsFormData.spo2) : undefined,
+        temperature: parseOptionalNumber(clinicalDetailsFormData.temperature),
+        spo2: parseOptionalNumber(clinicalDetailsFormData.spo2),
         repetition: clinicalDetailsFormData.repetition.trim(),
       }
       
       await updatePatient(patient.id, updateData)
       const updated = await getPatient(patient.id)
       setPatient(updated)
-      // Update form with latest data
-      if (updated) {
-        setClinicalDetailsFormData({
-          presentComplaints: updated.presentComplaints || "",
-          weight: updated.weight ? String(updated.weight) : "",
-          heightCm: updated.heightCm ? String(updated.heightCm) : "",
-          bp: updated.bp || "",
-          temperature: updated.temperature ? String(updated.temperature) : "",
-          spo2: updated.spo2 ? String(updated.spo2) : "",
-          repetition: updated.repetition || "",
-        })
-      }
+      setClinicalDetailsFormData(buildClinicalDetailsFormData(updated))
       showToast("Clinical details saved", "success")
     } catch (e: any) {
       showToast(e.message || "Failed to save clinical details", "error")
@@ -206,6 +204,15 @@ export default function PatientDetailPage() {
   const lastName = nameParts.slice(1).join(" ") || ""
   const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
   const patientTreatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
+  const clinicalSummaryItems = [
+    { label: "Weight", value: patient.weight != null ? `${patient.weight} kg` : "-" },
+    { label: "Height", value: patient.heightCm != null ? `${patient.heightCm} cm` : "-" },
+    { label: "Blood Pressure", value: patient.bp || "-" },
+    { label: "Temperature", value: patient.temperature != null ? `${patient.temperature} deg F` : "-" },
+    { label: "SpO2", value: patient.spo2 != null ? `${patient.spo2}%` : "-" },
+    { label: "Repetition", value: patient.repetition || "-" },
+  ]
+  const hasClinicalDetails = clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.presentComplaints)
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -253,11 +260,11 @@ export default function PatientDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">LMP</label>
-                  <input name="lmp" type="date" defaultValue={patient.lmp} className={ic} {...FORM_FIELD_PROPS} />
+                  <input name="lmp" type="date" defaultValue={patient.lmp ?? ""} className={ic} {...FORM_FIELD_PROPS} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">Cycle (days)</label>
-                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrualCycleDays} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
+                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrualCycleDays ?? ""} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
             </div>
@@ -458,6 +465,37 @@ export default function PatientDetailPage() {
           />
         </div>
 
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
+            </h3>
+            <span className="text-xs text-slate-500">Saved on this patient profile</span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {clinicalSummaryItems.map((item) => (
+              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
+            <p className="mt-1 text-sm text-slate-900">
+              {patient.presentComplaints || "No clinical complaints saved yet."}
+            </p>
+          </div>
+
+          {!hasClinicalDetails && (
+            <p className="mt-3 text-sm text-slate-500">
+              Fill in the clinical form below to save vitals and complaints for this patient.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
           <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
             <Calendar className="w-4 h-4 mr-2 text-blue-600" /> Book Appt
@@ -473,9 +511,12 @@ export default function PatientDetailPage() {
         {/* Clinical Details Form */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-600" /> Clinical Details
-            </h2>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-600" /> Update Clinical Details
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">These values save into the clinical details section above.</p>
+            </div>
           </div>
 
           <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="space-y-4">

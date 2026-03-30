@@ -100,6 +100,22 @@ function normalizePatientData<T extends Partial<Patient>>(data: T) {
   return nextData as T;
 }
 
+function stripUndefinedValues<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedValues(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([key, entryValue]) => [key, stripUndefinedValues(entryValue)]);
+
+    return Object.fromEntries(entries) as T;
+  }
+
+  return value;
+}
+
 async function validatePatientData(data: Partial<Patient>, excludeId?: string) {
   if ("caseNumber" in data && !normalizeCaseNumber(data.caseNumber)) {
     throw new Error("Case number is required.");
@@ -178,7 +194,7 @@ export async function searchPatients(term: string, maxResults?: number): Promise
 }
 
 export async function addPatient(data: Omit<Patient, "id" | "createdAt" | "updatedAt">): Promise<string> {
-  const normalized = normalizePatientData(data);
+  const normalized = stripUndefinedValues(normalizePatientData(data));
   await validatePatientData(normalized);
 
   const ref = await addDoc(collection(db, COL), {
@@ -191,7 +207,7 @@ export async function addPatient(data: Omit<Patient, "id" | "createdAt" | "updat
 }
 
 export async function updatePatient(id: string, data: Partial<Patient>): Promise<void> {
-  const normalized = normalizePatientData(data);
+  const normalized = stripUndefinedValues(normalizePatientData(data));
   await validatePatientData(normalized, id);
   await updateDoc(doc(db, COL, id), { ...normalized, updatedAt: Timestamp.now() });
   invalidatePatientCache();
