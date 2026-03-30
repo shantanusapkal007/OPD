@@ -60,8 +60,7 @@ export default function PatientDetailPage() {
   const [isSavingMedicines, setIsSavingMedicines] = useState(false)
   const { showToast } = useToast()
 
-  const buildMedicineDraft = (nextPatient: Patient | null) =>
-    (nextPatient?.currentMedicines || []).map((medicine) => ({ ...medicine }))
+  const buildMedicineDraft = () => [] as Medicine[]
 
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
     presentComplaints: nextPatient?.presentComplaints || "",
@@ -128,7 +127,7 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
           setEditMedicines(p.currentMedicines || [])
-          setMedicineDraft(buildMedicineDraft(p))
+          setMedicineDraft(buildMedicineDraft())
           setClinicalDetailsFormData(buildClinicalDetailsFormData(p))
         }
       } catch (e) {
@@ -188,7 +187,7 @@ export default function PatientDetailPage() {
       const updated = await getPatient(patient.id)
       setPatient(updated)
       resetEditFormState(updated)
-      setMedicineDraft(buildMedicineDraft(updated))
+      setMedicineDraft(buildMedicineDraft())
       setIsEditModalOpen(false)
     } catch (e: any) {
       showToast(e.message || "Failed to update patient.", "error")
@@ -234,7 +233,7 @@ export default function PatientDetailPage() {
       const updated = await getPatient(patient.id)
       setPatient(updated)
       setEditMedicines(updated?.currentMedicines || [])
-      setMedicineDraft(buildMedicineDraft(updated))
+      setMedicineDraft(buildMedicineDraft())
       showToast("Current medicines saved", "success")
     } catch (e: any) {
       showToast(e.message || "Failed to save medicines", "error")
@@ -255,7 +254,7 @@ export default function PatientDetailPage() {
   const normalizedSavedMedicines = sanitizeMedicines(savedMedicines)
   const normalizedMedicineDraft = sanitizeMedicines(medicineDraft)
   const hasSavedMedicines = normalizedSavedMedicines.length > 0
-  const hasMedicineChanges = JSON.stringify(normalizedMedicineDraft) !== JSON.stringify(normalizedSavedMedicines)
+  const hasMedicineChanges = normalizedMedicineDraft.length > 0
   const clinicalSummaryItems = [
     { label: "Weight", value: patient.weight != null ? `${patient.weight} kg` : "-" },
     { label: "Height", value: patient.heightCm != null ? `${patient.heightCm} cm` : "-" },
@@ -682,7 +681,7 @@ export default function PatientDetailPage() {
                   type="button"
                   variant="outline"
                   disabled={isSavingMedicines || !hasMedicineChanges}
-                  onClick={() => setMedicineDraft(buildMedicineDraft(patient))}
+                  onClick={() => setMedicineDraft(buildMedicineDraft())}
                 >
                   Reset
                 </Button>
