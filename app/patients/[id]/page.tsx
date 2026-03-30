@@ -55,7 +55,6 @@ export default function PatientDetailPage() {
     bp: "",
     temperature: "",
     spo2: "",
-    potency: "",
     repetition: "",
     lmp: ""
   })
@@ -96,7 +95,6 @@ export default function PatientDetailPage() {
             bp: p.bp || "",
             temperature: p.temperature?.toString() || "",
             spo2: p.spo2?.toString() || "",
-            potency: p.potency || "",
             repetition: p.repetition || "",
             lmp: p.lmp || ""
           })
@@ -148,7 +146,6 @@ export default function PatientDetailPage() {
         bp: fd.get("bp") as string || "",
         temperature: parseFloat(fd.get("temperature") as string) || null,
         spo2: parseFloat(fd.get("spo2") as string) || null,
-        potency: fd.get("potency") as string || "",
         repetition: fd.get("repetition") as string || "",
       };
 
@@ -186,7 +183,6 @@ export default function PatientDetailPage() {
         bp: clinicalVitals.bp,
         temperature: clinicalVitals.temperature ? parseFloat(clinicalVitals.temperature) : null,
         spo2: clinicalVitals.spo2 ? parseFloat(clinicalVitals.spo2) : null,
-        potency: clinicalVitals.potency,
         repetition: clinicalVitals.repetition,
       } as any;
       if (patient.gender === "Female") {
@@ -305,7 +301,6 @@ export default function PatientDetailPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Temp (°F)</label><input name="temperature" type="number" step="0.1" defaultValue={patient.temperature} className={ic} {...FORM_FIELD_PROPS} /></div>
                 <div className="space-y-1"><label className="text-sm font-medium text-slate-700">SPO2 (%)</label><input name="spo2" type="number" defaultValue={patient.spo2} className={ic} {...FORM_FIELD_PROPS} /></div>
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Potency</label><input name="potency" type="text" defaultValue={patient.potency} className={ic} {...FORM_FIELD_PROPS} /></div>
               </div>
               <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Repetition</label><input name="repetition" type="text" defaultValue={patient.repetition} className={ic} {...FORM_FIELD_PROPS} /></div>
             </div>
@@ -526,15 +521,6 @@ export default function PatientDetailPage() {
                   type="number"
                   value={clinicalVitals.spo2}
                   onChange={(e) => setClinicalVitals({ ...clinicalVitals, spo2: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Potency</label>
-                <input
-                  type="text"
-                  value={clinicalVitals.potency}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, potency: e.target.value })}
                   className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>

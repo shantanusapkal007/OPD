@@ -49,7 +49,6 @@ export interface Patient {
   bp?: string; // e.g. "120/80"
   temperature?: number; // °F
   spo2?: number; // %
-  potency?: string; // Medicine potency
   repetition?: string; // Medicine repetition schedule
   khataBalance?: number; // Ledger balance (Negative = Owes Money, Positive = Advance)
   createdAt: Timestamp;
@@ -79,6 +78,7 @@ export interface Medicine {
   dosage: string;
   frequency: string;
   days: number;
+  potency?: string;
   notes?: string;
 }
 

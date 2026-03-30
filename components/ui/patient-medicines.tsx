@@ -1,10 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Trash2, Edit2 } from "lucide-react"
+import { Plus, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Medicine } from "@/lib/types"
-import { useToast } from "@/components/ui/toast"
 
 interface PatientMedicinesProps {
   medicines: Medicine[] | undefined
@@ -13,49 +11,20 @@ interface PatientMedicinesProps {
 }
 
 export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly = false }: PatientMedicinesProps) {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [formData, setFormData] = useState<Medicine | null>(null)
-  const { showToast } = useToast()
-
   const meds = medicines || []
 
   const handleAdd = () => {
-    setEditingIndex(meds.length)
-    setFormData({ name: "", dosage: "", frequency: "", days: 0 })
+    onMedicinesChange([...meds, { name: "", dosage: "", frequency: "", days: 3, potency: "" }])
   }
 
-  const handleEdit = (index: number) => {
-    setEditingIndex(index)
-    setFormData({ ...meds[index] })
+  const updateMedicine = (idx: number, field: keyof Medicine, val: string | number) => { 
+    const newMeds = [...meds]; 
+    newMeds[idx] = { ...newMeds[idx], [field]: val as never }; 
+    onMedicinesChange(newMeds); 
   }
 
-  const handleSave = () => {
-    if (!formData || !formData.name.trim() || !formData.dosage.trim() || !formData.frequency.trim()) {
-      showToast("Please fill in all required fields", "warning")
-      return
-    }
-
-    const newMeds = [...meds]
-    if (editingIndex !== null) {
-      if (editingIndex === newMeds.length) {
-        newMeds.push(formData)
-      } else {
-        newMeds[editingIndex] = formData
-      }
-    }
-    
-    onMedicinesChange(newMeds)
-    setEditingIndex(null)
-    setFormData(null)
-  }
-
-  const handleDelete = (index: number) => {
-    onMedicinesChange(meds.filter((_, i) => i !== index))
-  }
-
-  const handleCancel = () => {
-    setEditingIndex(null)
-    setFormData(null)
+  const handleDelete = (idx: number) => {
+    onMedicinesChange(meds.filter((_, i) => i !== idx))
   }
 
   if (readOnly) {
@@ -64,151 +33,62 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
     }
 
     return (
-      <div className="space-y-3">
-        {meds.map((med, idx) => (
-          <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <h4 className="font-semibold text-slate-900">{med.name}</h4>
-            <div className="text-sm text-slate-600 mt-2 space-y-1">
-              <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
-              <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
-              <p><span className="font-medium">Duration:</span> {med.days} days</p>
-              {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
-            </div>
-          </div>
-        ))}
+      <div className="space-y-2 border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Medicine</th>
+                <th className="px-3 py-2 font-semibold">Potency</th>
+                <th className="px-3 py-2 font-semibold text-center">Dose</th>
+                <th className="px-3 py-2 font-semibold text-center">Freq</th>
+                <th className="px-3 py-2 font-semibold text-center">Duration</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {meds.map((px, i) => (
+                <tr key={i} className="hover:bg-slate-50">
+                  <td className="px-3 py-2 font-medium text-slate-800">
+                    {px.name}
+                    {px.notes && <span className="block text-[10px] font-normal text-slate-500 mt-0.5">{px.notes}</span>}
+                  </td>
+                  <td className="px-3 py-2 text-slate-600">{px.potency || "-"}</td>
+                  <td className="px-3 py-2 text-center text-slate-600">{px.dosage}</td>
+                  <td className="px-3 py-2 text-center text-slate-600">{px.frequency}</td>
+                  <td className="px-3 py-2 text-center text-slate-600">{px.days} days</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        {meds.map((med, idx) => (
-          <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900">{med.name}</h4>
-                <div className="text-sm text-slate-600 mt-2 space-y-1">
-                  <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
-                  <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
-                  <p><span className="font-medium">Duration:</span> {med.days} days</p>
-                  {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleEdit(idx)}
-                  className="p-1 hover:bg-blue-200 rounded transition-colors"
-                  title="Edit medicine"
-                >
-                  <Edit2 className="w-4 h-4 text-blue-600" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(idx)}
-                  className="p-1 hover:bg-red-200 rounded transition-colors"
-                  title="Remove medicine"
-                >
-                  <Trash2 className="w-4 h-4 text-red-600" />
-                </button>
+    <div className="space-y-2 border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-2">
+      {meds.length === 0 && <p className="text-xs text-center text-slate-400 py-2">No medicines currently added.</p>}
+      {meds.map((med, idx) => (
+        <div key={idx} className="flex gap-2 items-start bg-white p-2 rounded shadow-sm border border-slate-100">
+          <div className="flex-1 space-y-2">
+            <div className="grid grid-cols-12 gap-2">
+              <input className="col-span-12 sm:col-span-4 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Medicine Name" value={med.name} onChange={e => updateMedicine(idx, 'name', e.target.value)} />
+              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Potency (30C)" value={med.potency || ""} onChange={e => updateMedicine(idx, 'potency', e.target.value)} />
+              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Dose (1-0-1)" value={med.dosage} onChange={e => updateMedicine(idx, 'dosage', e.target.value)} />
+              <input className="col-span-6 sm:col-span-2 h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Freq (BD)" value={med.frequency} onChange={e => updateMedicine(idx, 'frequency', e.target.value)} />
+              <div className="col-span-6 sm:col-span-2 flex items-center gap-1">
+                <input type="number" className="w-full h-8 px-2 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-blue-500" placeholder="Days" value={med.days || ""} onChange={e => updateMedicine(idx, 'days', parseInt(e.target.value) || 0)} />
+                <span className="text-xs text-slate-500">d</span>
               </div>
             </div>
+            <input className="w-full h-8 px-2 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-500" placeholder="Notes (e.g., After food)" value={med.notes || ""} onChange={e => updateMedicine(idx, 'notes', e.target.value)} />
           </div>
-        ))}
-      </div>
-
-      {editingIndex !== null && formData && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-          <h4 className="font-semibold text-slate-900">
-            {editingIndex === meds.length ? "Add Medicine" : "Edit Medicine"}
-          </h4>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Medicine Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Tab Aspirin 500mg"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Dosage *</label>
-              <input
-                type="text"
-                value={formData.dosage}
-                onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-                placeholder="e.g., 1-0-1"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Frequency *</label>
-              <input
-                type="text"
-                value={formData.frequency}
-                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                placeholder="e.g., BD, TDS"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Duration (days) *</label>
-            <input
-              type="number"
-              value={formData.days}
-              onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) || 0 })}
-              placeholder="e.g., 7"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              min="1"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Notes (Optional)</label>
-            <input
-              type="text"
-              value={formData.notes || ""}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="e.g., After meals"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              Save Medicine
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm font-medium"
-            >
-              Cancel
-            </button>
-          </div>
+          <button type="button" onClick={() => handleDelete(idx)} className="text-slate-300 hover:text-red-500 p-1"><XCircle className="w-5 h-5" /></button>
         </div>
-      )}
-
-      {editingIndex === null && (
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="w-full py-2 px-3 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Add Medicine
-        </button>
-      )}
+      ))}
+      <Button type="button" variant="ghost" size="sm" onClick={handleAdd} className="w-full text-blue-600 text-xs mt-1 border border-dashed border-blue-200 bg-blue-50/50 hover:bg-blue-50 focus:ring-0">
+        <Plus className="w-3 h-3 mr-1"/> Add Multiple Medicine Option
+      </Button>
     </div>
   )
 }
