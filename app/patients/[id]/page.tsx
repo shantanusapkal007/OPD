@@ -46,20 +46,6 @@ export default function PatientDetailPage() {
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
-  
-  // Editable Clinical Vitals state
-  const [clinicalVitals, setClinicalVitals] = useState({
-    presentComplaints: "",
-    weight: "",
-    heightCm: "",
-    bp: "",
-    temperature: "",
-    spo2: "",
-    repetition: "",
-    lmp: ""
-  })
-  const [isSavingVitals, setIsSavingVitals] = useState(false)
-
   const { showToast } = useToast()
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
@@ -88,16 +74,6 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
           setEditMedicines(p.currentMedicines || [])
-          setClinicalVitals({
-            presentComplaints: p.presentComplaints || "",
-            weight: p.weight?.toString() || "",
-            heightCm: p.heightCm?.toString() || "",
-            bp: p.bp || "",
-            temperature: p.temperature?.toString() || "",
-            spo2: p.spo2?.toString() || "",
-            repetition: p.repetition || "",
-            lmp: p.lmp || ""
-          })
         }
       } catch (e) {
         setError("Failed to load patient details.")
@@ -139,14 +115,6 @@ export default function PatientDetailPage() {
         emergencyContact: fd.get("emergencyContact") as string || "",
         notes: fd.get("notes") as string || "",
         currentMedicines: editMedicines,
-        // Clinical fields
-        presentComplaints: fd.get("presentComplaints") as string || "",
-        weight: parseFloat(fd.get("weight") as string) || null,
-        heightCm: parseFloat(fd.get("heightCm") as string) || null,
-        bp: fd.get("bp") as string || "",
-        temperature: parseFloat(fd.get("temperature") as string) || null,
-        spo2: parseFloat(fd.get("spo2") as string) || null,
-        repetition: fd.get("repetition") as string || "",
       };
 
       if (editGender === "Female") {
@@ -169,33 +137,6 @@ export default function PatientDetailPage() {
       showToast(e.message || "Failed to update patient.", "error")
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleSaveVitals = async () => {
-    if (!patient?.id) return
-    setIsSavingVitals(true)
-    try {
-      const updateData: Partial<Patient> = {
-        presentComplaints: clinicalVitals.presentComplaints,
-        weight: clinicalVitals.weight ? parseFloat(clinicalVitals.weight) : null,
-        heightCm: clinicalVitals.heightCm ? parseFloat(clinicalVitals.heightCm) : null,
-        bp: clinicalVitals.bp,
-        temperature: clinicalVitals.temperature ? parseFloat(clinicalVitals.temperature) : null,
-        spo2: clinicalVitals.spo2 ? parseFloat(clinicalVitals.spo2) : null,
-        repetition: clinicalVitals.repetition,
-      } as any;
-      if (patient.gender === "Female") {
-        updateData.lmp = clinicalVitals.lmp;
-      }
-      await updatePatient(patient.id, updateData)
-      const updated = await getPatient(patient.id)
-      setPatient(updated)
-      showToast("Clinical details saved", "success")
-    } catch (e: any) {
-      showToast(e.message || "Failed to save clinical details.", "error")
-    } finally {
-      setIsSavingVitals(false)
     }
   }
 
@@ -288,24 +229,6 @@ export default function PatientDetailPage() {
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           
-          {/* Clinical Details */}
-          <div className="pt-3 border-t border-slate-100">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">Clinical Details</label>
-            <div className="space-y-3">
-              <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Present Complaints</label><textarea name="presentComplaints" defaultValue={patient.presentComplaints} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">WT (kg)</label><input name="weight" type="number" step="0.1" defaultValue={patient.weight} className={ic} {...FORM_FIELD_PROPS} /></div>
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">HT (cm)</label><input name="heightCm" type="number" step="0.1" defaultValue={patient.heightCm} className={ic} {...FORM_FIELD_PROPS} /></div>
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">BP (mmHg)</label><input name="bp" type="text" defaultValue={patient.bp} className={ic} {...FORM_FIELD_PROPS} /></div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Temp (°F)</label><input name="temperature" type="number" step="0.1" defaultValue={patient.temperature} className={ic} {...FORM_FIELD_PROPS} /></div>
-                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">SPO2 (%)</label><input name="spo2" type="number" defaultValue={patient.spo2} className={ic} {...FORM_FIELD_PROPS} /></div>
-              </div>
-              <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Repetition</label><input name="repetition" type="text" defaultValue={patient.repetition} className={ic} {...FORM_FIELD_PROPS} /></div>
-            </div>
-          </div>
-
           <div className="pt-3 border-t border-slate-100">
             <label className="text-sm font-medium text-slate-700 block mb-3">Overall Medicines</label>
             <PatientMedicines medicines={editMedicines} onMedicinesChange={setEditMedicines} />
@@ -353,10 +276,13 @@ export default function PatientDetailPage() {
             setIsEditVisitModalOpen(false)
             setSelectedVisit(null)
           }}
-          onSaved={(updatedVisit) => {
-            setVisits(visits.map(v => v.id === updatedVisit.id ? updatedVisit : v))
+          onSaved={async (updatedVisit) => {
+            // Refresh all visits from the database to ensure we have the latest data
+            const refreshedVisits = await getVisitsByPatient(patientId)
+            setVisits(refreshedVisits)
             setSelectedVisit(null)
             setIsEditVisitModalOpen(false)
+            showToast("Visit updated successfully!", "success")
           }}
         />
       )}
@@ -449,104 +375,6 @@ export default function PatientDetailPage() {
           {patient.notes && (
             <div className="col-span-2"><span className="text-xs font-semibold text-slate-400 uppercase">Notes</span><p className="text-slate-700 mt-0.5">{patient.notes}</p></div>
           )}
-        </div>
-
-        {/* Editable Clinical Vitals Section */}
-        <div className="mt-6 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-600" /> Clinical Details
-            </h3>
-            <Button size="sm" onClick={handleSaveVitals} disabled={isSavingVitals} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              {isSavingVitals ? "Saving..." : "Save Details"}
-            </Button>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase">Present Complaints</label>
-              <input
-                type="text"
-                value={clinicalVitals.presentComplaints}
-                onChange={(e) => setClinicalVitals({ ...clinicalVitals, presentComplaints: e.target.value })}
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Fever, Headache since 2 days"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">WT (kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={clinicalVitals.weight}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, weight: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">HT (cm)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={clinicalVitals.heightCm}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, heightCm: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">BP (mmHg)</label>
-                <input
-                  type="text"
-                  value={clinicalVitals.bp}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, bp: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="120/80"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Temp (°F)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={clinicalVitals.temperature}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, temperature: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">SPO2 (%)</label>
-                <input
-                  type="number"
-                  value={clinicalVitals.spo2}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, spo2: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div className="space-y-1 col-span-2">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Repetition</label>
-                <input
-                  type="text"
-                  value={clinicalVitals.repetition}
-                  onChange={(e) => setClinicalVitals({ ...clinicalVitals, repetition: e.target.value })}
-                  className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="e.g. BD, TDS"
-                />
-              </div>
-              {patient.gender === "Female" && (
-                <div className="space-y-1 col-span-2">
-                  <label className="text-xs font-semibold text-slate-500 uppercase">LMP</label>
-                  <input
-                    type="date"
-                    value={clinicalVitals.lmp}
-                    onChange={(e) => setClinicalVitals({ ...clinicalVitals, lmp: e.target.value })}
-                    className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Overall Medicines Section — always visible */}

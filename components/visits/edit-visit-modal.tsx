@@ -5,7 +5,7 @@ import { Trash2, Plus, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
-import { updateVisit } from "@/services/visit.service"
+import { updateVisit, getVisit } from "@/services/visit.service"
 import { calculateEDD, validateMedicines } from "@/lib/visit-validators"
 import type { Visit, Medicine } from "@/lib/types"
 
@@ -110,13 +110,11 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
 
       await updateVisit(visit.id!, updateData, userId)
 
-      // Create updated visit object for callback
-      const updatedVisit: Visit = {
-        ...visit,
-        ...updateData,
+      // Fetch the real saved visit data from Firebase
+      const savedVisit = await getVisit(visit.id!)
+      if (savedVisit) {
+        onSaved(savedVisit)
       }
-
-      onSaved(updatedVisit)
       onClose()
     } catch (error: any) {
       setErrors([error.message || "Failed to update visit"])
