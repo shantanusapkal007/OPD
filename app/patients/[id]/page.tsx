@@ -115,6 +115,15 @@ export default function PatientDetailPage() {
         emergencyContact: fd.get("emergencyContact") as string || "",
         notes: fd.get("notes") as string || "",
         currentMedicines: editMedicines,
+        // Clinical fields
+        presentComplaints: fd.get("presentComplaints") as string || "",
+        weight: parseFloat(fd.get("weight") as string) || null,
+        heightCm: parseFloat(fd.get("heightCm") as string) || null,
+        bp: fd.get("bp") as string || "",
+        temperature: parseFloat(fd.get("temperature") as string) || null,
+        spo2: parseFloat(fd.get("spo2") as string) || null,
+        potency: fd.get("potency") as string || "",
+        repetition: fd.get("repetition") as string || "",
       };
 
       if (editGender === "Female") {
@@ -229,6 +238,25 @@ export default function PatientDetailPage() {
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           
+          {/* Clinical Details */}
+          <div className="pt-3 border-t border-slate-100">
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-3">Clinical Details</label>
+            <div className="space-y-3">
+              <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Present Complaints</label><textarea name="presentComplaints" defaultValue={patient.presentComplaints} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">WT (kg)</label><input name="weight" type="number" step="0.1" defaultValue={patient.weight} className={ic} {...FORM_FIELD_PROPS} /></div>
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">HT (cm)</label><input name="heightCm" type="number" step="0.1" defaultValue={patient.heightCm} className={ic} {...FORM_FIELD_PROPS} /></div>
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">BP (mmHg)</label><input name="bp" type="text" defaultValue={patient.bp} className={ic} {...FORM_FIELD_PROPS} /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Temp (°F)</label><input name="temperature" type="number" step="0.1" defaultValue={patient.temperature} className={ic} {...FORM_FIELD_PROPS} /></div>
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">SPO2 (%)</label><input name="spo2" type="number" defaultValue={patient.spo2} className={ic} {...FORM_FIELD_PROPS} /></div>
+                <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Potency</label><input name="potency" type="text" defaultValue={patient.potency} className={ic} {...FORM_FIELD_PROPS} /></div>
+              </div>
+              <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Repetition</label><input name="repetition" type="text" defaultValue={patient.repetition} className={ic} {...FORM_FIELD_PROPS} /></div>
+            </div>
+          </div>
+
           <div className="pt-3 border-t border-slate-100">
             <label className="text-sm font-medium text-slate-700 block mb-3">Overall Medicines</label>
             <PatientMedicines medicines={editMedicines} onMedicinesChange={setEditMedicines} />
@@ -373,6 +401,65 @@ export default function PatientDetailPage() {
             <div className="col-span-2"><span className="text-xs font-semibold text-slate-400 uppercase">Notes</span><p className="text-slate-700 mt-0.5">{patient.notes}</p></div>
           )}
         </div>
+
+        {/* Clinical Vitals Section */}
+        {(patient.presentComplaints || patient.weight || patient.heightCm || patient.bp || patient.temperature || patient.spo2 || patient.potency || patient.repetition) && (
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-600" /> Clinical Vitals
+            </h3>
+            {patient.presentComplaints && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <span className="text-xs font-semibold text-amber-600 uppercase">Present Complaints</span>
+                <p className="text-slate-800 mt-1 text-sm">{patient.presentComplaints}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              {patient.weight != null && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <span className="text-xs font-semibold text-blue-500 uppercase">Weight</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.weight} kg</p>
+                </div>
+              )}
+              {patient.heightCm != null && (
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <span className="text-xs font-semibold text-blue-500 uppercase">Height</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.heightCm} cm</p>
+                </div>
+              )}
+              {patient.bp && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
+                  <span className="text-xs font-semibold text-red-500 uppercase">BP</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.bp} mmHg</p>
+                </div>
+              )}
+              {patient.temperature != null && (
+                <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                  <span className="text-xs font-semibold text-orange-500 uppercase">Temperature</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.temperature}°F</p>
+                </div>
+              )}
+              {patient.spo2 != null && (
+                <div className="p-3 bg-teal-50 border border-teal-100 rounded-lg">
+                  <span className="text-xs font-semibold text-teal-500 uppercase">SPO2</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.spo2}%</p>
+                </div>
+              )}
+              {patient.potency && (
+                <div className="p-3 bg-purple-50 border border-purple-100 rounded-lg">
+                  <span className="text-xs font-semibold text-purple-500 uppercase">Potency</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.potency}</p>
+                </div>
+              )}
+              {patient.repetition && (
+                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                  <span className="text-xs font-semibold text-indigo-500 uppercase">Repetition</span>
+                  <p className="text-slate-800 font-bold mt-1">{patient.repetition}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Overall Medicines Section — always visible */}
         <div className="mt-6 pt-6 border-t border-slate-100">

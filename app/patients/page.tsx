@@ -139,6 +139,15 @@ export default function PatientsPage() {
         emergencyContact: fd.get("emergencyContact") as string || "",
         currentMedicines: regMedicines.filter(m => m.name.trim() !== ""),
         notes: fd.get("notes") as string || "",
+        // Clinical fields
+        presentComplaints: fd.get("presentComplaints") as string || "",
+        weight: parseFloat(fd.get("weight") as string) || null,
+        heightCm: parseFloat(fd.get("heightCm") as string) || null,
+        bp: fd.get("bp") as string || "",
+        temperature: parseFloat(fd.get("temperature") as string) || null,
+        spo2: parseFloat(fd.get("spo2") as string) || null,
+        potency: fd.get("potency") as string || "",
+        repetition: fd.get("repetition") as string || "",
       };
 
       if (photoURL) patientData.photo = photoURL;
@@ -275,6 +284,21 @@ export default function PatientsPage() {
           </div>
           <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronicDiseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className={labelClass}>Notes</label><textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional notes..." {...FORM_FIELD_PROPS} /></div>
+
+          {/* Clinical Details */}
+          <h4 className={sectionTitle}>Clinical Details</h4>
+          <div className="space-y-1"><label className={labelClass}>Present Complaints</label><textarea name="presentComplaints" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="e.g. Fever, Headache since 2 days" {...FORM_FIELD_PROPS} /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1"><label className={labelClass}>WT (kg)</label><input name="weight" type="number" step="0.1" className={inputClass} placeholder="e.g. 65" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>HT (cm)</label><input name="heightCm" type="number" step="0.1" className={inputClass} placeholder="e.g. 170" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>BP (mmHg)</label><input name="bp" type="text" className={inputClass} placeholder="e.g. 120/80" {...FORM_FIELD_PROPS} /></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1"><label className={labelClass}>Temperature (°F)</label><input name="temperature" type="number" step="0.1" className={inputClass} placeholder="e.g. 98.6" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>SPO2 (%)</label><input name="spo2" type="number" className={inputClass} placeholder="e.g. 98" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Potency</label><input name="potency" type="text" className={inputClass} placeholder="e.g. 200C" {...FORM_FIELD_PROPS} /></div>
+          </div>
+          <div className="space-y-1"><label className={labelClass}>Repetition</label><input name="repetition" type="text" className={inputClass} placeholder="e.g. TDS, BD, Once daily" {...FORM_FIELD_PROPS} /></div>
 
           {/* Current Medicines */}
           <div className="pt-3 border-t border-slate-100">

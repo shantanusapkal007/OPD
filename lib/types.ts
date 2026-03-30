@@ -42,6 +42,15 @@ export interface Patient {
   photo?: string; // URL from Firebase Storage
   notes?: string;
   currentMedicines?: Medicine[]; // Overall/regular medicines for the patient
+  // Clinical vitals (patient-level quick access)
+  presentComplaints?: string;
+  weight?: number; // kg
+  heightCm?: number; // cm
+  bp?: string; // e.g. "120/80"
+  temperature?: number; // °F
+  spo2?: number; // %
+  potency?: string; // Medicine potency
+  repetition?: string; // Medicine repetition schedule
   khataBalance?: number; // Ledger balance (Negative = Owes Money, Positive = Advance)
   createdAt: Timestamp;
   updatedAt: Timestamp;
