@@ -56,7 +56,8 @@ export default function PatientDetailPage() {
     temperature: "",
     spo2: "",
     potency: "",
-    repetition: ""
+    repetition: "",
+    lmp: ""
   })
   const [isSavingVitals, setIsSavingVitals] = useState(false)
 
@@ -96,7 +97,8 @@ export default function PatientDetailPage() {
             temperature: p.temperature?.toString() || "",
             spo2: p.spo2?.toString() || "",
             potency: p.potency || "",
-            repetition: p.repetition || ""
+            repetition: p.repetition || "",
+            lmp: p.lmp || ""
           })
         }
       } catch (e) {
@@ -187,6 +189,9 @@ export default function PatientDetailPage() {
         potency: clinicalVitals.potency,
         repetition: clinicalVitals.repetition,
       } as any;
+      if (patient.gender === "Female") {
+        updateData.lmp = clinicalVitals.lmp;
+      }
       await updatePatient(patient.id, updateData)
       const updated = await getPatient(patient.id)
       setPatient(updated)
@@ -543,6 +548,17 @@ export default function PatientDetailPage() {
                   placeholder="e.g. BD, TDS"
                 />
               </div>
+              {patient.gender === "Female" && (
+                <div className="space-y-1 col-span-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase">LMP</label>
+                  <input
+                    type="date"
+                    value={clinicalVitals.lmp}
+                    onChange={(e) => setClinicalVitals({ ...clinicalVitals, lmp: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
