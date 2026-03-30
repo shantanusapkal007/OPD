@@ -78,7 +78,6 @@ export interface Medicine {
   dosage: string;
   frequency: string;
   days: number;
-  potency?: string;
   notes?: string;
 }
 

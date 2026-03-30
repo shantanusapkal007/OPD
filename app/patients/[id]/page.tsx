@@ -46,6 +46,16 @@ export default function PatientDetailPage() {
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
+  const [clinicalDetailsFormData, setClinicalDetailsFormData] = useState({
+    presentComplaints: "",
+    weight: "",
+    heightCm: "",
+    bp: "",
+    temperature: "",
+    spo2: "",
+    repetition: "",
+  })
+  const [isSavingClinical, setIsSavingClinical] = useState(false)
   const { showToast } = useToast()
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
@@ -74,6 +84,16 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
           setEditMedicines(p.currentMedicines || [])
+          // Initialize clinical details form
+          setClinicalDetailsFormData({
+            presentComplaints: p.presentComplaints || "",
+            weight: p.weight ? String(p.weight) : "",
+            heightCm: p.heightCm ? String(p.heightCm) : "",
+            bp: p.bp || "",
+            temperature: p.temperature ? String(p.temperature) : "",
+            spo2: p.spo2 ? String(p.spo2) : "",
+            repetition: p.repetition || "",
+          })
         }
       } catch (e) {
         setError("Failed to load patient details.")
@@ -139,6 +159,43 @@ export default function PatientDetailPage() {
       setIsSaving(false)
     }
   }
+
+  const handleSaveClinicalDetails = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!patient?.id) return
+    setIsSavingClinical(true)
+    try {
+      const updateData = {
+        presentComplaints: clinicalDetailsFormData.presentComplaints.trim(),
+        weight: clinicalDetailsFormData.weight ? parseFloat(clinicalDetailsFormData.weight) : undefined,
+        heightCm: clinicalDetailsFormData.heightCm ? parseFloat(clinicalDetailsFormData.heightCm) : undefined,
+        bp: clinicalDetailsFormData.bp.trim(),
+        temperature: clinicalDetailsFormData.temperature ? parseFloat(clinicalDetailsFormData.temperature) : undefined,
+        spo2: clinicalDetailsFormData.spo2 ? parseFloat(clinicalDetailsFormData.spo2) : undefined,
+        repetition: clinicalDetailsFormData.repetition.trim(),
+      }
+      
+      await updatePatient(patient.id, updateData)
+      const updated = await getPatient(patient.id)
+      setPatient(updated)
+      // Update form with latest data
+      if (updated) {
+        setClinicalDetailsFormData({
+          presentComplaints: updated.presentComplaints || "",
+          weight: updated.weight ? String(updated.weight) : "",
+          heightCm: updated.heightCm ? String(updated.heightCm) : "",
+          bp: updated.bp || "",
+          temperature: updated.temperature ? String(updated.temperature) : "",
+          spo2: updated.spo2 ? String(updated.spo2) : "",
+          repetition: updated.repetition || "",
+        })
+      }
+      showToast("Clinical details saved", "success")
+    } catch (e: any) {
+      showToast(e.message || "Failed to save clinical details", "error")
+    } finally {
+      setIsSavingClinical(false)
+    }
 
   if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">Loading patient...</div>
   if (!patient) return <div className="flex items-center justify-center py-20 text-slate-500">Patient not found.</div>
@@ -410,6 +467,114 @@ export default function PatientDetailPage() {
           <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => setIsWhatsAppModalOpen(true)}>
             <MessageSquare className="w-4 h-4 mr-2 text-green-500" /> WhatsApp
           </Button>
+        </div>
+
+        {/* Clinical Details Form */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-600" /> Clinical Details
+            </h2>
+          </div>
+
+          <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="space-y-4">
+            {/* Present Complaints */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Present Complaints</label>
+              <input
+                type="text"
+                placeholder="e.g. Fever, Headache since 2 days"
+                value={clinicalDetailsFormData.presentComplaints}
+                onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, presentComplaints: e.target.value })}
+                className={ic}
+                {...FORM_FIELD_PROPS}
+              />
+            </div>
+
+            {/* Vitals Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">WT (KG)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 70"
+                  step="0.1"
+                  value={clinicalDetailsFormData.weight}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, weight: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">HT (CM)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 170"
+                  step="0.1"
+                  value={clinicalDetailsFormData.heightCm}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, heightCm: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">BP (MMHG)</label>
+                <input
+                  type="text"
+                  placeholder="120/80"
+                  value={clinicalDetailsFormData.bp}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, bp: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">TEMP (°F)</label>
+                <input
+                  type="number"
+                  placeholder="98.6"
+                  step="0.1"
+                  value={clinicalDetailsFormData.temperature}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, temperature: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+            </div>
+
+            {/* SPO2 & Repetition */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">SPO2 (%)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 98"
+                  value={clinicalDetailsFormData.spo2}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, spo2: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Repetition</label>
+                <input
+                  type="text"
+                  placeholder="e.g., BD, TDS"
+                  value={clinicalDetailsFormData.repetition}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, repetition: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="pt-4 flex justify-end">
+              <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
+                {isSavingClinical ? "Saving..." : "Save Details"}
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
 
