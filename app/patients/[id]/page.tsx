@@ -196,6 +196,7 @@ export default function PatientDetailPage() {
     } finally {
       setIsSavingClinical(false)
     }
+  }
 
   if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">Loading patient...</div>
   if (!patient) return <div className="flex items-center justify-center py-20 text-slate-500">Patient not found.</div>
