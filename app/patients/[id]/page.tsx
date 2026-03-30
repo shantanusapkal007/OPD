@@ -265,6 +265,7 @@ export default function PatientDetailPage() {
     { label: "Repetition", value: patient.repetition || "-" },
   ]
   const hasClinicalDetails = clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.presentComplaints)
+  const hasPatientCareSummary = hasClinicalDetails || hasSavedMedicines
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -495,67 +496,182 @@ export default function PatientDetailPage() {
         </div>
 
         {/* Overall Medicines Section — always visible */}
-        <div className="mt-6 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-600" /> Clinical Details & Current Medicines
-              </h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Keep the patient&apos;s current medicines and clinical notes together in one place.
-              </p>
+        {hasPatientCareSummary && (
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600" /> Patient Care Summary
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Saved clinical details and current medicines are grouped together here for quick review.
+                </p>
+              </div>
+              <span className="text-xs text-slate-500">Auto-refreshed after save</span>
             </div>
-            <span className="text-xs text-slate-500">Saved on this patient profile</span>
-          </div>
 
-          <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Pill className="w-4 h-4 text-blue-600" /> Saved Current Medicines
-              </h4>
-              {hasSavedMedicines ? (
-                <PatientMedicines medicines={normalizedSavedMedicines} readOnly />
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                  No current medicines saved yet.
+            <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              {hasClinicalDetails && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {clinicalSummaryItems.map((item) => (
+                      <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                        <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
+                    <p className="mt-1 text-sm text-slate-900">{patient.presentComplaints || "-"}</p>
+                  </div>
+                </div>
+              )}
+
+              {hasSavedMedicines && (
+                <div className={hasClinicalDetails ? "border-t border-slate-200 pt-6" : ""}>
+                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
+                  </h4>
+                  <PatientMedicines medicines={normalizedSavedMedicines} readOnly />
                 </div>
               )}
             </div>
+          </div>
+        )}
 
-            <div className="border-t border-slate-200 pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-600" /> Saved Clinical Details
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {clinicalSummaryItems.map((item) => (
-                  <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
-                    <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
-                  </div>
-                ))}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
+            <Calendar className="w-4 h-4 mr-2 text-blue-600" /> Book Appt
+          </Button>
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/visits')}>
+            <Pill className="w-4 h-4 mr-2 text-green-600" /> New Visit
+          </Button>
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => setIsWhatsAppModalOpen(true)}>
+            <MessageSquare className="w-4 h-4 mr-2 text-green-500" /> WhatsApp
+          </Button>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-600" /> Update Patient Care
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Enter clinical details and current medicines together, then save each part when you are ready.
+            </p>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">Track complaints, vitals, and repetition in one place.</p>
               </div>
 
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
-                <p className="mt-1 text-sm text-slate-900">
-                  {patient.presentComplaints || "No clinical complaints saved yet."}
-                </p>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Present Complaints</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Fever, Headache since 2 days"
+                  value={clinicalDetailsFormData.presentComplaints}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, presentComplaints: e.target.value })}
+                  className={ic}
+                  {...FORM_FIELD_PROPS}
+                />
               </div>
 
-              {!hasClinicalDetails && (
-                <p className="mt-3 text-sm text-slate-500">
-                  Fill in the clinical form below to save vitals and complaints for this patient.
-                </p>
-              )}
-            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Weight (kg)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 70"
+                    step="0.1"
+                    value={clinicalDetailsFormData.weight}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, weight: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Height (cm)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 170"
+                    step="0.1"
+                    value={clinicalDetailsFormData.heightCm}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, heightCm: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Blood Pressure</label>
+                  <input
+                    type="text"
+                    placeholder="120/80"
+                    value={clinicalDetailsFormData.bp}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, bp: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Temperature (deg F)</label>
+                  <input
+                    type="number"
+                    placeholder="98.6"
+                    step="0.1"
+                    value={clinicalDetailsFormData.temperature}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, temperature: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">SpO2 (%)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 98"
+                    value={clinicalDetailsFormData.spo2}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, spo2: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Repetition</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BD, TDS"
+                    value={clinicalDetailsFormData.repetition}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, repetition: e.target.value })}
+                    className={ic}
+                    {...FORM_FIELD_PROPS}
+                  />
+                </div>
+              </div>
 
-            <div className="border-t border-slate-200 pt-6">
+              <div className="pt-2 flex justify-end">
+                <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
+                  {isSavingClinical ? "Saving..." : "Save Clinical Details"}
+                </Button>
+              </div>
+            </form>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                  <Pill className="w-4 h-4 text-blue-600" /> Update Current Medicines
-                </h4>
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
+                </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Edit medicines here, then save once. Typing will not trigger notifications.
+                  Update medicines here and save once. Typing will not trigger notifications.
                 </p>
               </div>
 
@@ -582,20 +698,8 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
-            <Calendar className="w-4 h-4 mr-2 text-blue-600" /> Book Appt
-          </Button>
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/visits')}>
-            <Pill className="w-4 h-4 mr-2 text-green-600" /> New Visit
-          </Button>
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => setIsWhatsAppModalOpen(true)}>
-            <MessageSquare className="w-4 h-4 mr-2 text-green-500" /> WhatsApp
-          </Button>
-        </div>
-
         {/* Clinical Details Form */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
+        <div className="hidden">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
