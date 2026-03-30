@@ -3,7 +3,7 @@ import {
   getDocs, getDoc, query, orderBy, Timestamp, increment, where, writeBatch
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Patient, TreatmentType } from "@/lib/types";
+import type { Medicine, Patient, TreatmentType } from "@/lib/types";
 
 const COL = "patients";
 let patientCache: Patient[] | null = null;
@@ -57,6 +57,30 @@ function validateTreatmentType(value?: TreatmentType | string | null) {
   return value === "Allopathic" || value === "Homeopathic";
 }
 
+function normalizeMedicines(medicines?: Medicine[] | null) {
+  if (!medicines) return undefined;
+
+  return medicines
+    .map((medicine) => ({
+      ...medicine,
+      name: cleanText(medicine.name),
+      potency: cleanText(medicine.potency),
+      dosage: cleanText(medicine.dosage),
+      frequency: cleanText(medicine.frequency),
+      notes: cleanText(medicine.notes),
+      days: Number.isFinite(medicine.days) ? medicine.days : 0,
+    }))
+    .filter((medicine) =>
+      Boolean(
+        medicine.name ||
+        medicine.potency ||
+        medicine.dosage ||
+        medicine.frequency ||
+        medicine.notes
+      )
+    );
+}
+
 async function assertUniqueCaseNumber(caseNumber: string, excludeId?: string) {
   const normalized = normalizeCaseNumber(caseNumber);
   const patients = await getPatients();
@@ -87,6 +111,7 @@ function normalizePatientData<T extends Partial<Patient>>(data: T) {
   if ("presentComplaints" in data) nextData.presentComplaints = cleanText(data.presentComplaints);
   if ("bp" in data) nextData.bp = cleanText(data.bp);
   if ("repetition" in data) nextData.repetition = cleanText(data.repetition);
+  if ("currentMedicines" in data) nextData.currentMedicines = normalizeMedicines(data.currentMedicines);
 
   if ("address" in data && data.address) {
     nextData.address = {

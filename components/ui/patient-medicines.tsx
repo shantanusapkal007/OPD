@@ -6,7 +6,7 @@ import { Medicine } from "@/lib/types"
 
 interface PatientMedicinesProps {
   medicines: Medicine[] | undefined
-  onMedicinesChange: (medicines: Medicine[]) => void
+  onMedicinesChange?: (medicines: Medicine[]) => void
   readOnly?: boolean
 }
 
@@ -14,16 +14,19 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
   const meds = medicines || []
 
   const handleAdd = () => {
+    if (!onMedicinesChange) return
     onMedicinesChange([...meds, { name: "", dosage: "", frequency: "", days: 3, potency: "" }])
   }
 
   const updateMedicine = (idx: number, field: keyof Medicine, val: string | number) => { 
+    if (!onMedicinesChange) return
     const newMeds = [...meds]; 
     newMeds[idx] = { ...newMeds[idx], [field]: val as never }; 
     onMedicinesChange(newMeds); 
   }
 
   const handleDelete = (idx: number) => {
+    if (!onMedicinesChange) return
     onMedicinesChange(meds.filter((_, i) => i !== idx))
   }
 

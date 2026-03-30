@@ -42,6 +42,7 @@ export default function PatientDetailPage() {
   const [editGender, setEditGender] = useState("Male")
   const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
   const [editMedicines, setEditMedicines] = useState<Medicine[]>([])
+  const [medicineDraft, setMedicineDraft] = useState<Medicine[]>([])
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
@@ -56,7 +57,11 @@ export default function PatientDetailPage() {
     repetition: "",
   })
   const [isSavingClinical, setIsSavingClinical] = useState(false)
+  const [isSavingMedicines, setIsSavingMedicines] = useState(false)
   const { showToast } = useToast()
+
+  const buildMedicineDraft = (nextPatient: Patient | null) =>
+    (nextPatient?.currentMedicines || []).map((medicine) => ({ ...medicine }))
 
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
     presentComplaints: nextPatient?.presentComplaints || "",
@@ -75,6 +80,27 @@ export default function PatientDetailPage() {
     const parsed = Number.parseFloat(trimmed)
     return Number.isFinite(parsed) ? parsed : null
   }
+
+  const sanitizeMedicines = (medicines: Medicine[]) =>
+    medicines
+      .map((medicine) => ({
+        ...medicine,
+        name: medicine.name.trim(),
+        potency: medicine.potency?.trim() || "",
+        dosage: medicine.dosage.trim(),
+        frequency: medicine.frequency.trim(),
+        notes: medicine.notes?.trim() || "",
+        days: Number.isFinite(medicine.days) ? medicine.days : 0,
+      }))
+      .filter((medicine) =>
+        Boolean(
+          medicine.name ||
+          medicine.potency ||
+          medicine.dosage ||
+          medicine.frequency ||
+          medicine.notes
+        )
+      )
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
@@ -102,6 +128,7 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
           setEditMedicines(p.currentMedicines || [])
+          setMedicineDraft(buildMedicineDraft(p))
           setClinicalDetailsFormData(buildClinicalDetailsFormData(p))
         }
       } catch (e) {
@@ -161,6 +188,7 @@ export default function PatientDetailPage() {
       const updated = await getPatient(patient.id)
       setPatient(updated)
       resetEditFormState(updated)
+      setMedicineDraft(buildMedicineDraft(updated))
       setIsEditModalOpen(false)
     } catch (e: any) {
       showToast(e.message || "Failed to update patient.", "error")
@@ -196,6 +224,25 @@ export default function PatientDetailPage() {
     }
   }
 
+  const handleSaveMedicines = async () => {
+    if (!patient?.id) return
+
+    setIsSavingMedicines(true)
+    try {
+      const nextMedicines = sanitizeMedicines(medicineDraft)
+      await updatePatient(patient.id, { currentMedicines: nextMedicines })
+      const updated = await getPatient(patient.id)
+      setPatient(updated)
+      setEditMedicines(updated?.currentMedicines || [])
+      setMedicineDraft(buildMedicineDraft(updated))
+      showToast("Current medicines saved", "success")
+    } catch (e: any) {
+      showToast(e.message || "Failed to save medicines", "error")
+    } finally {
+      setIsSavingMedicines(false)
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">Loading patient...</div>
   if (!patient) return <div className="flex items-center justify-center py-20 text-slate-500">Patient not found.</div>
 
@@ -204,6 +251,11 @@ export default function PatientDetailPage() {
   const lastName = nameParts.slice(1).join(" ") || ""
   const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
   const patientTreatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
+  const savedMedicines = patient.currentMedicines || []
+  const normalizedSavedMedicines = sanitizeMedicines(savedMedicines)
+  const normalizedMedicineDraft = sanitizeMedicines(medicineDraft)
+  const hasSavedMedicines = normalizedSavedMedicines.length > 0
+  const hasMedicineChanges = JSON.stringify(normalizedMedicineDraft) !== JSON.stringify(normalizedSavedMedicines)
   const clinicalSummaryItems = [
     { label: "Weight", value: patient.weight != null ? `${patient.weight} kg` : "-" },
     { label: "Height", value: patient.heightCm != null ? `${patient.heightCm} cm` : "-" },
@@ -444,56 +496,90 @@ export default function PatientDetailPage() {
 
         {/* Overall Medicines Section — always visible */}
         <div className="mt-6 pt-6 border-t border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
-          </h3>
-          <PatientMedicines
-            medicines={editMedicines}
-            onMedicinesChange={async (meds) => {
-              setEditMedicines(meds)
-              if (patient?.id) {
-                try {
-                  await updatePatient(patient.id, { currentMedicines: meds })
-                  const updated = await getPatient(patient.id)
-                  setPatient(updated)
-                  showToast("Medicines updated", "success")
-                } catch (e: any) {
-                  showToast(e.message || "Failed to save medicines", "error")
-                }
-              }
-            }}
-          />
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-slate-100">
           <div className="flex items-center justify-between gap-3 mb-4">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
-            </h3>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600" /> Clinical Details & Current Medicines
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Keep the patient&apos;s current medicines and clinical notes together in one place.
+              </p>
+            </div>
             <span className="text-xs text-slate-500">Saved on this patient profile</span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {clinicalSummaryItems.map((item) => (
-              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
-                <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
+          <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Pill className="w-4 h-4 text-blue-600" /> Saved Current Medicines
+              </h4>
+              {hasSavedMedicines ? (
+                <PatientMedicines medicines={normalizedSavedMedicines} readOnly />
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+                  No current medicines saved yet.
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-600" /> Saved Clinical Details
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {clinicalSummaryItems.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                    <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
-            <p className="mt-1 text-sm text-slate-900">
-              {patient.presentComplaints || "No clinical complaints saved yet."}
-            </p>
-          </div>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
+                <p className="mt-1 text-sm text-slate-900">
+                  {patient.presentComplaints || "No clinical complaints saved yet."}
+                </p>
+              </div>
 
-          {!hasClinicalDetails && (
-            <p className="mt-3 text-sm text-slate-500">
-              Fill in the clinical form below to save vitals and complaints for this patient.
-            </p>
-          )}
+              {!hasClinicalDetails && (
+                <p className="mt-3 text-sm text-slate-500">
+                  Fill in the clinical form below to save vitals and complaints for this patient.
+                </p>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 pt-6">
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-blue-600" /> Update Current Medicines
+                </h4>
+                <p className="mt-1 text-sm text-slate-500">
+                  Edit medicines here, then save once. Typing will not trigger notifications.
+                </p>
+              </div>
+
+              <PatientMedicines medicines={medicineDraft} onMedicinesChange={setMedicineDraft} />
+
+              <div className="pt-4 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSavingMedicines || !hasMedicineChanges}
+                  onClick={() => setMedicineDraft(buildMedicineDraft(patient))}
+                >
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSavingMedicines || !hasMedicineChanges}
+                  onClick={handleSaveMedicines}
+                >
+                  {isSavingMedicines ? "Saving..." : "Save Medicines"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
