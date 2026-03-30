@@ -62,6 +62,16 @@ export default function PatientDetailPage() {
 
   const buildMedicineDraft = () => [] as Medicine[]
 
+  const buildEmptyClinicalDetailsFormData = () => ({
+    presentComplaints: "",
+    weight: "",
+    heightCm: "",
+    bp: "",
+    temperature: "",
+    spo2: "",
+    repetition: "",
+  })
+
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
     presentComplaints: nextPatient?.presentComplaints || "",
     weight: nextPatient?.weight != null ? String(nextPatient.weight) : "",
@@ -214,7 +224,7 @@ export default function PatientDetailPage() {
       await updatePatient(patient.id, updateData)
       const updated = await getPatient(patient.id)
       setPatient(updated)
-      setClinicalDetailsFormData(buildClinicalDetailsFormData(updated))
+      setClinicalDetailsFormData(buildEmptyClinicalDetailsFormData())
       showToast("Clinical details saved", "success")
     } catch (e: any) {
       showToast(e.message || "Failed to save clinical details", "error")
