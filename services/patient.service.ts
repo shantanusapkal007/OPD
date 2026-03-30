@@ -86,7 +86,6 @@ function normalizePatientData<T extends Partial<Patient>>(data: T) {
   if ("notes" in data) nextData.notes = cleanText(data.notes);
   if ("presentComplaints" in data) nextData.presentComplaints = cleanText(data.presentComplaints);
   if ("bp" in data) nextData.bp = cleanText(data.bp);
-  if ("potency" in data) nextData.potency = cleanText(data.potency);
   if ("repetition" in data) nextData.repetition = cleanText(data.repetition);
 
   if ("address" in data && data.address) {
