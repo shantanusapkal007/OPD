@@ -10,8 +10,7 @@ import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useRouter } from "next/navigation"
 import { getAppointmentsByDate, addAppointment, updateAppointmentStatus } from "@/services/appointment.service"
-import { searchPatients, addPatient } from "@/services/patient.service"
-import { Timestamp } from "firebase/firestore"
+import { searchPatients, addPatient, getNextPatientCaseNumber, getPatient } from "@/services/patient.service"
 import type { Appointment, Patient } from "@/lib/types"
 import { useToast } from "@/components/ui/toast"
 
@@ -27,6 +26,7 @@ export default function AppointmentsPage() {
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [isQuickAddPatient, setIsQuickAddPatient] = useState(false)
+  const [nextCaseNumber, setNextCaseNumber] = useState("")
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const router = useRouter()
   const { showToast } = useToast()
@@ -36,6 +36,7 @@ export default function AppointmentsPage() {
     setPatientSearch("")
     setPatientResults([])
     setIsQuickAddPatient(false)
+    setNextCaseNumber("")
   }
 
   const fetchAppointments = useCallback(async () => {
@@ -72,6 +73,28 @@ export default function AppointmentsPage() {
       active = false
     }
   }, [debouncedPatientSearch])
+
+  useEffect(() => {
+    if (!isQuickAddPatient) return
+
+    let active = true
+
+    getNextPatientCaseNumber()
+      .then((value) => {
+        if (active) {
+          setNextCaseNumber(value)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setNextCaseNumber("CS-1001")
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isQuickAddPatient])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -146,10 +169,14 @@ export default function AppointmentsPage() {
                 setIsSaving(true);
                 try {
                   const newPatient = {
-                    fullName: name, mobileNumber: mobile, caseNumber: `C-${Date.now().toString().slice(-6)}`, gender: "Other" as const, age: 0, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
+                    fullName: name, mobileNumber: mobile, caseNumber: nextCaseNumber || "CS-1001", treatmentType: "Allopathic" as const, gender: "Other" as const, age: 0
                   };
                   const newId = await addPatient(newPatient);
-                  setSelectedPatient({ id: newId, ...newPatient });
+                  const createdPatient = await getPatient(newId);
+                  if (!createdPatient) {
+                    throw new Error("Patient was created but could not be loaded.");
+                  }
+                  setSelectedPatient(createdPatient);
                   setIsQuickAddPatient(false);
                 } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
               }}>{isSaving ? "Saving..." : "Save & Select"}</Button>

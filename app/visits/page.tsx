@@ -8,9 +8,8 @@ import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import Image from "next/image"
-import { Timestamp } from "firebase/firestore"
 import { getVisits, addVisit, updateVisitImages } from "@/services/visit.service"
-import { searchPatients, addPatient } from "@/services/patient.service"
+import { searchPatients, addPatient, getNextPatientCaseNumber, getPatient } from "@/services/patient.service"
 import { uploadFilesToStorage, validateImageFiles } from "@/services/storage.service"
 import type { Visit, Patient, Medicine } from "@/lib/types"
 import { useToast } from "@/components/ui/toast"
@@ -133,6 +132,7 @@ export default function VisitsPage() {
   const [patientResults, setPatientResults] = useState<Patient[]>([])
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [isQuickAddPatient, setIsQuickAddPatient] = useState(false)
+  const [nextCaseNumber, setNextCaseNumber] = useState("")
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 120)
   const [visitImageFiles, setVisitImageFiles] = useState<File[]>([])
   const [visitImagePreviews, setVisitImagePreviews] = useState<string[]>([])
@@ -181,6 +181,28 @@ export default function VisitsPage() {
       active = false
     }
   }, [debouncedPatientSearch])
+
+  useEffect(() => {
+    if (!isQuickAddPatient) return
+
+    let active = true
+
+    getNextPatientCaseNumber()
+      .then((value) => {
+        if (active) {
+          setNextCaseNumber(value)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setNextCaseNumber("CS-1001")
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isQuickAddPatient])
 
   useEffect(() => {
     return () => {
@@ -248,6 +270,7 @@ export default function VisitsPage() {
     setPatientSearch("")
     setPatientResults([])
     setIsQuickAddPatient(false)
+    setNextCaseNumber("")
     setVisitImageFiles([])
     setUploadedVisitImageUrls([])
     setVisitImageUploadProgress(0)
@@ -404,10 +427,14 @@ export default function VisitsPage() {
                 setIsSaving(true);
                 try {
                   const newPatient = {
-                    fullName: name, mobileNumber: mobile, caseNumber: `C-${Date.now().toString().slice(-6)}`, gender: "Other" as const, age: 0, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
+                    fullName: name, mobileNumber: mobile, caseNumber: nextCaseNumber || "CS-1001", treatmentType: "Allopathic" as const, gender: "Other" as const, age: 0
                   };
                   const newId = await addPatient(newPatient);
-                  setSelectedPatient({ id: newId, ...newPatient });
+                  const createdPatient = await getPatient(newId);
+                  if (!createdPatient) {
+                    throw new Error("Patient was created but could not be loaded.");
+                  }
+                  setSelectedPatient(createdPatient);
                   setIsQuickAddPatient(false);
                 } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
               }}>{isSaving ? "Saving..." : "Save & Select"}</Button>
