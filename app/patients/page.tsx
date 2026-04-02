@@ -12,7 +12,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
-import { getPatients, addPatient, searchPatients } from "@/services/patient.service"
+import { getPatients, addPatient, searchPatients, getNextPatientCaseNumber } from "@/services/patient.service"
 import { uploadFileToStorage, validateImageFiles } from "@/services/storage.service"
 import { getLatestVisitsForPatients } from "@/services/visit.service"
 import type { Patient, TreatmentType, Visit, Medicine } from "@/lib/types"
@@ -38,6 +38,7 @@ export default function PatientsPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [regMedicines, setRegMedicines] = useState<Medicine[]>([])
+  const [caseNumber, setCaseNumber] = useState("")
   const debouncedSearchTerm = useDebouncedValue(searchTerm, 120)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -75,12 +76,35 @@ export default function PatientsPage() {
     }
   }, [photoPreview])
 
+  useEffect(() => {
+    if (!isAddModalOpen) return
+
+    let active = true
+
+    getNextPatientCaseNumber()
+      .then((nextCaseNumber) => {
+        if (active) {
+          setCaseNumber(nextCaseNumber)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCaseNumber("CS-1001")
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isAddModalOpen])
+
   const resetPatientFormState = () => {
     setSelectedGender("Male")
     setSelectedTreatmentType("Allopathic")
     setPhotoFile(null)
     setPhotoPreview(null)
     setRegMedicines([])
+    setCaseNumber("")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -116,7 +140,7 @@ export default function PatientsPage() {
       }
 
       const patientData: any = {
-        caseNumber: fd.get("caseNumber") as string,
+        caseNumber,
         treatmentType: fd.get("treatmentType") as TreatmentType,
         fullName: `${fd.get("firstName")} ${fd.get("lastName")}`,
         mobileNumber: fd.get("mobile") as string,
@@ -139,7 +163,6 @@ export default function PatientsPage() {
         emergencyContact: fd.get("emergencyContact") as string || "",
         currentMedicines: regMedicines.filter(m => m.name.trim() !== ""),
         notes: fd.get("notes") as string || "",
-        // Clinical fields
         presentComplaints: fd.get("presentComplaints") as string || "",
         weight: parseFloat(fd.get("weight") as string) || null,
         heightCm: parseFloat(fd.get("heightCm") as string) || null,
@@ -208,7 +231,7 @@ export default function PatientsPage() {
           {/* Basic Info */}
           <h4 className={sectionTitle}>Basic Information</h4>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Case Number *</label><input required name="caseNumber" type="text" className={inputClass} placeholder="CS-1006" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Case Number *</label><input required name="caseNumber" type="text" value={caseNumber} onChange={(e) => setCaseNumber(e.target.value)} className={inputClass} placeholder="CS-1006" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>Mobile Number *</label><input required name="mobile" type="tel" className={inputClass} placeholder="9876543210" {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -503,4 +526,3 @@ export default function PatientsPage() {
     </div>
   )
 }
-

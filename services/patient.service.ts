@@ -53,6 +53,21 @@ function normalizeCaseNumber(value?: string | null) {
   return value?.trim().toUpperCase() ?? "";
 }
 
+function incrementCaseNumber(caseNumber: string) {
+  const normalized = normalizeCaseNumber(caseNumber);
+  const match = normalized.match(/(\d+)(?!.*\d)/);
+
+  if (!match || match.index === undefined) {
+    return "";
+  }
+
+  const digits = match[0];
+  const nextValue = String(Number.parseInt(digits, 10) + 1).padStart(digits.length, "0");
+  const prefix = normalized.slice(0, match.index);
+  const suffix = normalized.slice(match.index + digits.length);
+  return `${prefix}${nextValue}${suffix}`;
+}
+
 function validateTreatmentType(value?: TreatmentType | string | null) {
   return value === "Allopathic" || value === "Homeopathic";
 }
@@ -187,6 +202,19 @@ export async function getPatients(): Promise<Patient[]> {
   })();
 
   return patientCachePromise;
+}
+
+export async function getNextPatientCaseNumber(): Promise<string> {
+  const patients = await getPatients();
+
+  for (const patient of patients) {
+    const nextCaseNumber = incrementCaseNumber(patient.caseNumber);
+    if (nextCaseNumber) {
+      return nextCaseNumber;
+    }
+  }
+
+  return "CS-1001";
 }
 
 export async function getPatient(id: string): Promise<Patient | null> {
