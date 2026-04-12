@@ -1,38 +1,39 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/providers/AuthProvider';
-import { Activity, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { Activity, CheckCircle2 } from "lucide-react";
+
+const appName = process.env.NEXT_PUBLIC_APP_NAME || "OPD Clinic";
 
 const features = [
-  'Patient Records Management',
-  'Smart Appointment Scheduling',
-  'WhatsApp Reminders & Follow-ups',
-  'Access from Any Device',
+  "Patient Records Management",
+  "Smart Appointment Scheduling",
+  "Prescription & Case Paper System",
+  "Access from Any Device",
 ];
 
 export default function LoginPage() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/");
+    }
+  }, [authLoading, isAuthenticated, router]);
 
   const handleLogin = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
       await signInWithGoogle();
-      router.replace('/');
+      // OAuth redirect happens — no need to router.replace here
     } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/user-cancelled') {
-        setError('Sign-in popup was closed. Please try again and complete the login.');
-      } else if (err.code === 'auth/unauthorized-email') {
-        setError('Access Denied: Your email is not whitelisted for this system.');
-      } else {
-        setError(err.message || 'Sign in failed. Please try again.');
-      }
-    } finally {
+      setError(err.message || "Sign in failed. Please try again.");
       setLoading(false);
     }
   };
@@ -49,7 +50,7 @@ export default function LoginPage() {
             <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
               <Activity size={24} className="text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Suradkar Hospital</span>
+            <span className="text-xl font-bold tracking-tight">{appName}</span>
           </div>
           <h1 className="text-[28px] font-bold leading-[1.2] mb-3">
             Smart Clinic<br />Management System
@@ -68,7 +69,7 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <p className="relative z-10 text-white/40 text-xs">© 2026 Suradkar Hospital. All rights reserved.</p>
+        <p className="relative z-10 text-white/40 text-xs">&copy; {new Date().getFullYear()} {appName}. All rights reserved.</p>
       </div>
 
       {/* ── Right panel ── */}
@@ -79,7 +80,7 @@ export default function LoginPage() {
             <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center mb-3">
               <Activity size={26} className="text-white" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Suradkar Hospital</h2>
+            <h2 className="text-xl font-bold text-slate-900">{appName}</h2>
             <p className="text-sm text-slate-500 mt-1">Smart Clinic Management System</p>
           </div>
 
@@ -109,17 +110,17 @@ export default function LoginPage() {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
             )}
-            {loading ? 'Signing in…' : 'Sign in with Google'}
+            {loading ? "Signing in…" : "Sign in with Google"}
           </button>
 
           <p className="text-xs text-slate-400 text-center mt-6">
-            By continuing, you agree to our{' '}
+            By continuing, you agree to our{" "}
             <a href="#" className="text-blue-600 hover:underline">Terms</a>
-            {' & '}
+            {" & "}
             <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
           </p>
 
-          <p className="lg:hidden text-xs text-slate-400 text-center mt-12">© 2026 Suradkar Hospital</p>
+          <p className="lg:hidden text-xs text-slate-400 text-center mt-12">&copy; {new Date().getFullYear()} {appName}</p>
         </div>
       </div>
     </div>

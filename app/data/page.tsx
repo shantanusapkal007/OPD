@@ -103,28 +103,28 @@ export default function DataPage() {
       const patients = await getPatients()
       const headers = ["Case Number", "Treatment Type", "Full Name", "Mobile", "Alternate Mobile", "Gender", "Age", "DOB", "Blood Group", "Email", "Occupation", "Marital Status", "Address", "City", "State", "Pincode", "Allergies", "Chronic Diseases", "Emergency Contact", "LMP", "Cycle Days", "Khata Balance", "Notes"]
       const rows = patients.map((patient) => [
-        patient.caseNumber,
-        getTreatmentType(patient.caseNumber, patient.treatmentType),
-        patient.fullName,
-        patient.mobileNumber,
-        patient.alternateMobile || "",
+        patient.case_number,
+        getTreatmentType(patient.case_number, patient.treatment_type),
+        patient.full_name,
+        patient.mobile_number,
+        patient.alternate_mobile || "",
         patient.gender,
         String(patient.age),
-        patient.dateOfBirth || "",
-        patient.bloodGroup || "",
+        patient.date_of_birth || "",
+        patient.blood_group || "",
         patient.email || "",
         patient.occupation || "",
-        patient.maritalStatus || "",
+        patient.marital_status || "",
         patient.address?.line1 || "",
         patient.address?.city || "",
         patient.address?.state || "",
         patient.address?.pincode || "",
         patient.allergies || "",
-        patient.chronicDiseases || "",
-        patient.emergencyContact || "",
+        patient.chronic_diseases || "",
+        patient.emergency_contact || "",
         patient.lmp || "",
-        String(patient.menstrualCycleDays || ""),
-        String(patient.khataBalance || 0),
+        String(patient.menstrual_cycle_days || ""),
+        String(patient.khata_balance || 0),
         patient.notes || "",
       ])
       downloadCSV(`patients_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
@@ -141,11 +141,11 @@ export default function DataPage() {
       const visits = await getVisits()
       const headers = ["Date", "Patient Name", "Complaints", "HPI", "Examination", "Diagnosis", "Prescription", "BP", "Pulse", "Temp", "SpO2", "Weight", "Height", "Resp Rate", "Lab Tests", "Investigations", "Advice", "Referral", "Follow-up", "Bill"]
       const rows = visits.map((visit) => [
-        visit.createdAt?.toDate?.()?.toLocaleDateString() || "",
-        visit.patientName,
+        visit.created_at ? new Date(visit.created_at).toLocaleDateString() : "",
+        visit.patient_name,
         visit.complaints,
-        visit.historyOfPresentIllness || "",
-        visit.examinationFindings || "",
+        visit.history_of_present_illness || "",
+        visit.examination_findings || "",
         visit.diagnosis,
         visit.prescriptions?.map((prescription) => prescription.name).join("; ") || "",
         visit.vitals?.bp || "",
@@ -155,12 +155,12 @@ export default function DataPage() {
         String(visit.vitals?.weight || ""),
         String(visit.vitals?.height || ""),
         String(visit.vitals?.respiratoryRate || ""),
-        visit.labTests || "",
-        visit.investigationsAdvised || "",
+        visit.lab_tests || "",
+        visit.investigations_advised || "",
         visit.advice || "",
         visit.referral || "",
-        visit.followUpDate || "",
-        String(visit.totalBill || 0),
+        visit.follow_up_date || "",
+        String(visit.total_bill || 0),
       ])
       downloadCSV(`visits_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
@@ -177,12 +177,12 @@ export default function DataPage() {
       const headers = ["Date", "Patient Name", "Amount", "Method", "Status", "Description", "Transaction ID"]
       const rows = payments.map((payment) => [
         payment.date,
-        payment.patientName,
+        payment.patient_name,
         String(payment.amount),
-        payment.paymentMethod,
+        payment.payment_method,
         payment.status,
         payment.description || "",
-        payment.transactionId || "",
+        payment.transaction_id || "",
       ])
       downloadCSV(`payments_${new Date().toISOString().split("T")[0]}.csv`, arrayToCSV(headers, rows))
     } catch (e) {
@@ -198,9 +198,9 @@ export default function DataPage() {
       const appointments = await getAppointments()
       const headers = ["Date", "Time", "Patient Name", "Type", "Status", "Reason", "Notes"]
       const rows = appointments.map((appointment) => [
-        appointment.appointmentDate,
-        appointment.timeSlot,
-        appointment.patientName,
+        appointment.appointment_date,
+        appointment.time_slot,
+        appointment.patient_name,
         appointment.type,
         appointment.status,
         appointment.reason || "",
@@ -256,24 +256,24 @@ export default function DataPage() {
         const caseNumber = get("case")
         const importedTreatmentType = get("treatment")
         const patientData: any = {
-          caseNumber,
-          treatmentType: normalizeTreatmentType(importedTreatmentType, caseNumber),
-          fullName: get("name") || get("full name"),
-          mobileNumber: get("mobile") || get("phone"),
+          case_number: caseNumber,
+          treatment_type: normalizeTreatmentType(importedTreatmentType, caseNumber),
+          full_name: get("name") || get("full name"),
+          mobile_number: get("mobile") || get("phone"),
           gender: (get("gender") || "Male") as "Male" | "Female" | "Other",
           age: numberOrDefault(get("age")),
-          bloodGroup: get("blood"),
+          blood_group: get("blood"),
           email: get("email"),
           occupation: get("occupation"),
-          maritalStatus: get("marital"),
-          alternateMobile: get("alternate"),
-          dateOfBirth: get("dob") || get("birth"),
+          marital_status: get("marital"),
+          alternate_mobile: get("alternate"),
+          date_of_birth: get("dob") || get("birth"),
           allergies: get("allerg"),
-          chronicDiseases: get("chronic"),
-          emergencyContact: get("emergency"),
+          chronic_diseases: get("chronic"),
+          emergency_contact: get("emergency"),
           lmp: get("lmp"),
-          menstrualCycleDays: numberOrDefault(get("cycle"), 0) || undefined,
-          khataBalance: numberOrDefault(get("khata balance"), 0),
+          menstrual_cycle_days: numberOrDefault(get("cycle"), 0) || undefined,
+          khata_balance: numberOrDefault(get("khata balance"), 0),
           notes: get("notes"),
           address: {
             line1: get("address"),
@@ -283,7 +283,7 @@ export default function DataPage() {
           },
         }
 
-        if (!patientData.fullName && !patientData.caseNumber) {
+        if (!patientData.full_name && !patientData.case_number) {
           failed++
           continue
         }

@@ -9,6 +9,8 @@ import { getUpcomingFollowUps } from "@/services/visit.service"
 import { getAppointments } from "@/services/appointment.service"
 import type { Visit, Appointment } from "@/lib/types"
 
+const appName = process.env.NEXT_PUBLIC_APP_NAME || "OPD Clinic";
+
 export function Header() {
   const pathname = usePathname()
   const router = useRouter()
@@ -43,12 +45,11 @@ export function Header() {
         getUpcomingFollowUps(),
         getAppointments(),
       ])
-      // Show follow-ups for today and next 3 days
       const threeDaysFromNow = new Date()
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
       const threeDaysStr = threeDaysFromNow.toISOString().split("T")[0]
-      setFollowUps(fups.filter(f => f.followUpDate && f.followUpDate <= threeDaysStr).slice(0, 8))
-      setTodayAppointments(allApts.filter(a => a.status === "scheduled" && a.appointmentDate === today).slice(0, 8))
+      setFollowUps(fups.filter(f => f.follow_up_date && f.follow_up_date <= threeDaysStr).slice(0, 8))
+      setTodayAppointments(allApts.filter(a => a.status === "scheduled" && a.appointment_date === today).slice(0, 8))
     } catch {
       // silently fail
     } finally {
@@ -77,7 +78,7 @@ export function Header() {
     if (pathname.startsWith("/visits")) return "Visits"
     if (pathname.startsWith("/payments")) return "Payments"
     if (pathname.startsWith("/settings")) return "Settings"
-    return "Suradkar Hospital"
+    return "Dashboard"
   }
 
   const formatDate = (dateStr: string) => {
@@ -95,7 +96,7 @@ export function Header() {
       <div className="min-w-0">
         <div className="lg:hidden">
           <p className="truncate text-base font-semibold text-slate-900">{getPageTitle()}</p>
-          <p className="truncate text-xs text-slate-500">Suradkar Hospital</p>
+          <p className="truncate text-xs text-slate-500">{appName}</p>
         </div>
         <div className="hidden lg:block">
           <h1 className="text-xl font-semibold text-slate-900">{getPageTitle()}</h1>
@@ -154,7 +155,6 @@ export function Header() {
                   </div>
                 ) : (
                   <>
-                    {/* Today's Appointments */}
                     {todayAppointments.length > 0 && (
                       <div>
                         <div className="px-4 py-2 bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -170,9 +170,9 @@ export function Header() {
                               <Calendar className="w-4 h-4 text-blue-600" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-900 truncate">{apt.patientName}</p>
+                              <p className="text-sm font-medium text-slate-900 truncate">{apt.patient_name}</p>
                               <p className="text-xs text-slate-500 mt-0.5">
-                                <Clock className="w-3 h-3 inline mr-1" />{apt.timeSlot} · {apt.type}
+                                <Clock className="w-3 h-3 inline mr-1" />{apt.time_slot} · {apt.type}
                               </p>
                             </div>
                           </button>
@@ -180,7 +180,6 @@ export function Header() {
                       </div>
                     )}
 
-                    {/* Upcoming Follow-ups */}
                     {followUps.length > 0 && (
                       <div>
                         <div className="px-4 py-2 bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -190,7 +189,7 @@ export function Header() {
                           <button
                             key={visit.id}
                             onClick={() => {
-                              if (visit.patientId) router.push(`/patients/${visit.patientId}`)
+                              if (visit.patient_id) router.push(`/patients/${visit.patient_id}`)
                               setIsNotifOpen(false)
                             }}
                             className="w-full px-4 py-3 flex items-start gap-3 hover:bg-green-50/50 transition-colors text-left border-b border-slate-50 last:border-0"
@@ -199,17 +198,17 @@ export function Header() {
                               <Pill className="w-4 h-4 text-green-600" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-900 truncate">{visit.patientName}</p>
+                              <p className="text-sm font-medium text-slate-900 truncate">{visit.patient_name}</p>
                               <p className="text-xs text-slate-500 mt-0.5">
-                                Follow-up: {formatDate(visit.followUpDate!)} · {visit.diagnosis}
+                                Follow-up: {formatDate(visit.follow_up_date!)} · {visit.diagnosis}
                               </p>
                             </div>
                             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${
-                              visit.followUpDate === new Date().toISOString().split("T")[0]
+                              visit.follow_up_date === new Date().toISOString().split("T")[0]
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-slate-100 text-slate-600"
                             }`}>
-                              {formatDate(visit.followUpDate!)}
+                              {formatDate(visit.follow_up_date!)}
                             </span>
                           </button>
                         ))}

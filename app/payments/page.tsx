@@ -84,10 +84,10 @@ export default function PaymentsPage() {
       }
 
       await addPayment({
-        patientId: selectedPatient.id!,
-        patientName: selectedPatient.fullName,
+        patient_id: selectedPatient.id!,
+        patient_name: selectedPatient.full_name,
         amount,
-        paymentMethod: fd.get("method") as PaymentMethod,
+        payment_method: fd.get("method") as PaymentMethod,
         status: "paid" as PaymentStatus,
         description: fd.get("description") as string || "",
         date: new Date().toISOString().split("T")[0],
@@ -108,8 +108,8 @@ export default function PaymentsPage() {
   const handleSendWhatsAppBill = async (pay: Payment) => {
     setIsSendingWhatsApp(pay.id!)
     try {
-      const patient = await getPatient(pay.patientId)
-      let phone = patient?.mobileNumber || ""
+      const patient = await getPatient(pay.patient_id)
+      let phone = patient?.mobile_number || ""
 
       if (!phone || phone === "0000000000") {
         showToast("No phone number on file for this patient.", "error")
@@ -125,14 +125,14 @@ export default function PaymentsPage() {
 
       phone = phone.slice(-10)
 
-      const message = `*SURADKAR HOSPITAL*
+      const message = `*OPD CLINIC*
 ------------------------
 *Payment Receipt*
 Receipt No: ${pay.id?.substring(0, 6).toUpperCase()}
-Patient: ${pay.patientName}
+Patient: ${pay.patient_name}
 Date: ${pay.date}
 Amount: Rs. ${pay.amount}
-Mode: ${pay.paymentMethod.toUpperCase()}
+Mode: ${pay.payment_method.toUpperCase()}
 Description: ${pay.description || 'Consultation / Treatment'}
 ------------------------
 Thank you for your visit!`
@@ -164,14 +164,14 @@ Thank you for your visit!`
         <form className="space-y-4" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Patient Name</label>
-            <input type="text" value={selectedPatient ? selectedPatient.fullName : patientSearch}
+            <input type="text" value={selectedPatient ? selectedPatient.full_name : patientSearch}
               onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null) }}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search patient..." {...FORM_FIELD_PROPS} />
             {patientResults.length > 0 && !selectedPatient && (
               <div className="border border-slate-200 rounded-lg max-h-32 overflow-y-auto bg-white shadow-lg">
                 {patientResults.map(p => (
                   <button type="button" key={p.id} onClick={() => { setSelectedPatient(p); setPatientSearch(""); setPatientResults([]) }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.fullName}</button>
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{p.full_name}</button>
                 ))}
               </div>
             )}
@@ -258,9 +258,9 @@ Thank you for your visit!`
               {payments.map(pay => (
                 <tr key={pay.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900 uppercase">{pay.id?.substring(0, 6)}</td>
-                  <td className="px-6 py-4 text-slate-600">{pay.patientName}</td>
+                  <td className="px-6 py-4 text-slate-600">{pay.patient_name}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">{formatCurrency(pay.amount)}</td>
-                  <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium uppercase">{pay.paymentMethod}</span></td>
+                  <td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium uppercase">{pay.payment_method}</span></td>
                   <td className="px-6 py-4 text-slate-500">{pay.date}</td>
                   <td className="px-6 py-4 text-right">
                     <Button 

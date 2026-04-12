@@ -10,7 +10,7 @@ import { EditVisitModal } from "@/components/visits/edit-visit-modal"
 import { VisitCard } from "@/components/visits/visit-card"
 import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
-import { cn, formatCurrency, getTreatmentType } from "@/lib/utils"
+import { formatCurrency, getTreatmentType } from "@/lib/utils"
 import { useAuth } from "@/components/providers/AuthProvider"
 import Image from "next/image"
 import Link from "next/link"
@@ -48,9 +48,9 @@ export default function PatientDetailPage() {
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
   const [clinicalDetailsFormData, setClinicalDetailsFormData] = useState({
-    presentComplaints: "",
+    present_complaints: "",
     weight: "",
-    heightCm: "",
+    height_cm: "",
     bp: "",
     temperature: "",
     spo2: "",
@@ -62,23 +62,13 @@ export default function PatientDetailPage() {
 
   const buildMedicineDraft = () => [] as Medicine[]
 
-  const buildEmptyClinicalDetailsFormData = () => ({
-    presentComplaints: "",
-    weight: "",
-    heightCm: "",
-    bp: "",
-    temperature: "",
-    spo2: "",
-    repetition: "",
-  })
-
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
-    presentComplaints: nextPatient?.presentComplaints || "",
-    weight: nextPatient?.weight != null ? String(nextPatient.weight) : "",
-    heightCm: nextPatient?.heightCm != null ? String(nextPatient.heightCm) : "",
+    present_complaints: nextPatient?.present_complaints || "",
+    weight: nextPatient?.weight?.toString() || "",
+    height_cm: nextPatient?.height_cm?.toString() || "",
     bp: nextPatient?.bp || "",
-    temperature: nextPatient?.temperature != null ? String(nextPatient.temperature) : "",
-    spo2: nextPatient?.spo2 != null ? String(nextPatient.spo2) : "",
+    temperature: nextPatient?.temperature?.toString() || "",
+    spo2: nextPatient?.spo2?.toString() || "",
     repetition: nextPatient?.repetition || "",
   })
 
@@ -114,8 +104,8 @@ export default function PatientDetailPage() {
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
     setEditGender(nextPatient.gender)
-    setEditTreatmentType(getTreatmentType(nextPatient.caseNumber, nextPatient.treatmentType))
-    setEditMedicines(nextPatient.currentMedicines || [])
+    setEditTreatmentType(getTreatmentType(nextPatient.case_number, nextPatient.treatment_type))
+    setEditMedicines(nextPatient.current_medicines || [])
   }
 
   useEffect(() => {
@@ -135,8 +125,8 @@ export default function PatientDetailPage() {
         setError("")
         if (p) {
           setEditGender(p.gender)
-          setEditTreatmentType(getTreatmentType(p.caseNumber, p.treatmentType))
-          setEditMedicines(p.currentMedicines || [])
+          setEditTreatmentType(getTreatmentType(p.case_number, p.treatment_type))
+          setEditMedicines(p.current_medicines || [])
           setMedicineDraft(buildMedicineDraft())
           setClinicalDetailsFormData(buildClinicalDetailsFormData(p))
         }
@@ -179,15 +169,15 @@ export default function PatientDetailPage() {
         chronicDiseases: fd.get("chronicDiseases") as string || "",
         emergencyContact: fd.get("emergencyContact") as string || "",
         notes: fd.get("notes") as string || "",
-        currentMedicines: editMedicines,
+        current_medicines: editMedicines,
       };
 
       if (editGender === "Female") {
         updateData.lmp = fd.get("lmp") as string || "";
-        updateData.menstrualCycleDays = parseInt(fd.get("menstrualCycleDays") as string) || null;
+        updateData.menstrual_cycle_days = parseInt(fd.get("menstrualCycleDays") as string) || null;
       } else {
         updateData.lmp = null;
-        updateData.menstrualCycleDays = null;
+        updateData.menstrual_cycle_days = null;
       }
 
       await updatePatient(patient.id, updateData)
@@ -212,9 +202,9 @@ export default function PatientDetailPage() {
     setIsSavingClinical(true)
     try {
       const updateData = {
-        presentComplaints: clinicalDetailsFormData.presentComplaints.trim(),
+        presentComplaints: clinicalDetailsFormData.present_complaints.trim(),
         weight: parseOptionalNumber(clinicalDetailsFormData.weight),
-        heightCm: parseOptionalNumber(clinicalDetailsFormData.heightCm),
+        heightCm: parseOptionalNumber(clinicalDetailsFormData.height_cm),
         bp: clinicalDetailsFormData.bp.trim(),
         temperature: parseOptionalNumber(clinicalDetailsFormData.temperature),
         spo2: parseOptionalNumber(clinicalDetailsFormData.spo2),
@@ -224,7 +214,7 @@ export default function PatientDetailPage() {
       await updatePatient(patient.id, updateData)
       const updated = await getPatient(patient.id)
       setPatient(updated)
-      setClinicalDetailsFormData(buildEmptyClinicalDetailsFormData())
+      setClinicalDetailsFormData(buildClinicalDetailsFormData(updated))
       showToast("Clinical details saved", "success")
     } catch (e: any) {
       showToast(e.message || "Failed to save clinical details", "error")
@@ -239,10 +229,10 @@ export default function PatientDetailPage() {
     setIsSavingMedicines(true)
     try {
       const nextMedicines = sanitizeMedicines(medicineDraft)
-      await updatePatient(patient.id, { currentMedicines: nextMedicines })
+      await updatePatient(patient.id, { current_medicines: nextMedicines })
       const updated = await getPatient(patient.id)
       setPatient(updated)
-      setEditMedicines(updated?.currentMedicines || [])
+      setEditMedicines(updated?.current_medicines || [])
       setMedicineDraft(buildMedicineDraft())
       showToast("Current medicines saved", "success")
     } catch (e: any) {
@@ -255,91 +245,33 @@ export default function PatientDetailPage() {
   if (loading) return <div className="flex items-center justify-center py-20 text-slate-500">Loading patient...</div>
   if (!patient) return <div className="flex items-center justify-center py-20 text-slate-500">Patient not found.</div>
 
-  const nameParts = patient.fullName?.split(" ") || [""]
+  const nameParts = patient.full_name?.split(" ") || [""]
   const firstName = nameParts[0] || ""
   const lastName = nameParts.slice(1).join(" ") || ""
-  const ic = "w-full h-10 rounded-xl border border-slate-200 bg-white/90 px-3 text-sm text-slate-800 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-sky-500"
-  const patientTreatmentType = getTreatmentType(patient.caseNumber, patient.treatmentType)
-  const savedMedicines = patient.currentMedicines || []
+  const ic = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+  const patientTreatmentType = getTreatmentType(patient.case_number, patient.treatment_type)
+  const savedMedicines = patient.current_medicines || []
   const normalizedSavedMedicines = sanitizeMedicines(savedMedicines)
   const normalizedMedicineDraft = sanitizeMedicines(medicineDraft)
   const hasSavedMedicines = normalizedSavedMedicines.length > 0
   const hasMedicineChanges = normalizedMedicineDraft.length > 0
   const clinicalSummaryItems = [
     { label: "Weight", value: patient.weight != null ? `${patient.weight} kg` : "-" },
-    { label: "Height", value: patient.heightCm != null ? `${patient.heightCm} cm` : "-" },
+    { label: "Height", value: patient.height_cm != null ? `${patient.height_cm} cm` : "-" },
     { label: "Blood Pressure", value: patient.bp || "-" },
     { label: "Temperature", value: patient.temperature != null ? `${patient.temperature} deg F` : "-" },
     { label: "SpO2", value: patient.spo2 != null ? `${patient.spo2}%` : "-" },
     { label: "Repetition", value: patient.repetition || "-" },
   ]
-  const hasClinicalDetails = clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.presentComplaints)
+  const hasClinicalDetails = clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.present_complaints)
   const hasPatientCareSummary = hasClinicalDetails || hasSavedMedicines
-  const khataBalance = patient.khataBalance || 0
-  const khataLabel = khataBalance < 0
-    ? `Due ${formatCurrency(Math.abs(khataBalance))}`
-    : khataBalance > 0
-      ? `Advance ${formatCurrency(khataBalance)}`
-      : "Clear"
-  const patientStats = [
-    {
-      label: "Visits",
-      value: String(visits.length),
-      hint: visits.length > 0 ? "Case papers recorded" : "No visits yet",
-      icon: Activity,
-      shell: "border-sky-200/80 bg-gradient-to-br from-sky-100 via-white to-blue-50 text-sky-900",
-      iconShell: "bg-sky-600 text-white shadow-sky-200",
-    },
-    {
-      label: "Appointments",
-      value: String(appointments.length),
-      hint: appointments.length > 0 ? "Scheduled history" : "Nothing booked yet",
-      icon: Calendar,
-      shell: "border-amber-200/80 bg-gradient-to-br from-amber-100 via-white to-orange-50 text-amber-900",
-      iconShell: "bg-amber-500 text-white shadow-amber-200",
-    },
-    {
-      label: "Payments",
-      value: String(payments.length),
-      hint: payments.length > 0 ? "Transactions on file" : "No payment records",
-      icon: BookOpen,
-      shell: "border-emerald-200/80 bg-gradient-to-br from-emerald-100 via-white to-teal-50 text-emerald-900",
-      iconShell: "bg-emerald-600 text-white shadow-emerald-200",
-    },
-    {
-      label: "Khata",
-      value: khataLabel,
-      hint: khataBalance < 0 ? "Pending ledger balance" : khataBalance > 0 ? "Advance available" : "No open balance",
-      icon: MessageSquare,
-      shell: khataBalance < 0
-        ? "border-rose-200/80 bg-gradient-to-br from-rose-100 via-white to-red-50 text-rose-900"
-        : khataBalance > 0
-          ? "border-emerald-200/80 bg-gradient-to-br from-emerald-100 via-white to-lime-50 text-emerald-900"
-          : "border-slate-200/80 bg-gradient-to-br from-slate-100 via-white to-slate-50 text-slate-900",
-      iconShell: khataBalance < 0
-        ? "bg-rose-600 text-white shadow-rose-200"
-        : khataBalance > 0
-          ? "bg-emerald-600 text-white shadow-emerald-200"
-          : "bg-slate-700 text-white shadow-slate-200",
-    },
-  ]
-  const tabItems = [
-    { id: "visits", label: "Visits", count: visits.length },
-    { id: "appointments", label: "Appointments", count: appointments.length },
-    { id: "payments", label: "Payments", count: payments.length },
-    {
-      id: "khata",
-      label: "Khata Ledger",
-      count: visits.filter((visit) => (visit.totalBill || 0) > 0).length + payments.length,
-    },
-  ]
 
   return (
-    <div className="relative mx-auto max-w-5xl space-y-6 pb-8">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <Breadcrumb items={[
         { label: "Dashboard", href: "/" },
         { label: "Patients", href: "/patients" },
-        { label: patient?.fullName || "Loading..." }
+        { label: patient?.full_name || "Loading..." }
       ]} />
       <Link href="/patients" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
         <ArrowLeft className="w-4 h-4 mr-1" /> Back to Patients
@@ -350,8 +282,8 @@ export default function PatientDetailPage() {
       <Modal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); resetEditFormState() }} title="Edit Patient">
         <form className="space-y-3 max-h-[70vh] overflow-y-auto pr-2" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="caseNumber" defaultValue={patient.caseNumber} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Mobile</label><input required name="mobile" type="tel" defaultValue={patient.mobileNumber} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="caseNumber" defaultValue={patient.case_number} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Mobile</label><input required name="mobile" type="tel" defaultValue={patient.mobile_number} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">First Name</label><input required name="firstName" defaultValue={firstName} className={ic} {...FORM_FIELD_PROPS} /></div>
@@ -372,8 +304,8 @@ export default function PatientDetailPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="bloodGroup" defaultValue={patient.bloodGroup} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.dateOfBirth} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="bloodGroup" defaultValue={patient.blood_group} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.date_of_birth} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           {editGender === "Female" && (
             <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
@@ -384,17 +316,17 @@ export default function PatientDetailPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">Cycle (days)</label>
-                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrualCycleDays ?? ""} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
+                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrual_cycle_days ?? ""} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternateMobile" defaultValue={patient.alternateMobile} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternateMobile" defaultValue={patient.alternate_mobile} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Email</label><input name="email" type="email" defaultValue={patient.email} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergencyContact" defaultValue={patient.emergencyContact} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergencyContact" defaultValue={patient.emergency_contact} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Occupation</label><input name="occupation" defaultValue={patient.occupation} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Address</label><input name="addressLine1" defaultValue={patient.address?.line1} className={ic} {...FORM_FIELD_PROPS} /></div>
@@ -405,13 +337,13 @@ export default function PatientDetailPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Marital Status</label>
-              <select name="maritalStatus" defaultValue={patient.maritalStatus} className={ic} {...FORM_FIELD_PROPS}>
+              <select name="maritalStatus" defaultValue={patient.marital_status} className={ic} {...FORM_FIELD_PROPS}>
                 <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
               </select>
             </div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Allergies</label><input name="allergies" defaultValue={patient.allergies} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronicDiseases} className={ic} {...FORM_FIELD_PROPS} /></div>
+          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronic_diseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           
           <div className="pt-3 border-t border-slate-100">
@@ -442,7 +374,7 @@ export default function PatientDetailPage() {
           <div className="pt-4 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIsWhatsAppModalOpen(false)}>Cancel</Button>
             <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => {
-              window.open(`https://wa.me/91${patient.mobileNumber}?text=Hello ${firstName}, this message is sent from our clinic via +91 ${selectedWhatsAppNumber}.`, '_blank')
+              window.open(`https://wa.me/91${patient.mobile_number}?text=Hello ${firstName}, this message is sent from our clinic via +91 ${selectedWhatsAppNumber}.`, '_blank')
               setIsWhatsAppModalOpen(false)
             }}>
               <MessageSquare className="w-4 h-4 mr-2" /> Send Message
@@ -473,58 +405,52 @@ export default function PatientDetailPage() {
       )}
 
       {/* Patient Profile Card */}
-      <div className="relative overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-[0_24px_80px_-36px_rgba(14,116,144,0.35)] sm:p-8">
-        <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.2),_transparent_45%),radial-gradient(circle_at_left,_rgba(16,185,129,0.16),_transparent_30%)]" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-5">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+          <div className="flex items-center gap-6">
             {patient.photo ? (
-              <div className="relative h-20 w-20 overflow-hidden rounded-[24px] border-4 border-white shadow-lg shadow-sky-100">
-                <Image src={patient.photo} alt={patient.fullName} fill unoptimized sizes="80px" className="object-cover" />
+              <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-slate-200">
+                <Image src={patient.photo} alt={patient.full_name} fill unoptimized sizes="64px" className="object-cover" />
               </div>
             ) : (
-              <div className="rounded-[24px] bg-white p-1 shadow-lg shadow-sky-100">
-                <Avatar fallback={patient.fullName?.substring(0, 2).toUpperCase()} size="xl" />
-              </div>
+              <Avatar fallback={patient.full_name?.substring(0, 2).toUpperCase()} size="xl" />
             )}
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="border-sky-200 bg-white/80 text-sky-700">Case: {patient.caseNumber}</Badge>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900">{patient.full_name}</h1>
+                <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">Case: {patient.case_number}</Badge>
                 <Badge variant="outline" className={`font-bold ${patientTreatmentType === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
                   {patientTreatmentType}
                 </Badge>
-                <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.gender}</Badge>
-                <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.age} yrs</Badge>
-                {patient.bloodGroup && <Badge variant="secondary" className="bg-rose-50 text-rose-700">{patient.bloodGroup}</Badge>}
               </div>
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{patient.fullName}</h1>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                  Patient profile, recent care context, and ledger activity in one place.
-                </p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-slate-600">
+                <span className="flex items-center gap-1"><Phone className="w-4 h-4" /> {patient.mobile_number}</span>
+                {patient.alternate_mobile && <span className="flex items-center gap-1"><Phone className="w-4 h-4 text-slate-400" /> {patient.alternate_mobile}</span>}
+                {patient.email && <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> {patient.email}</span>}
               </div>
-              <div className="flex flex-wrap gap-3 text-sm text-slate-600">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
-                  <Phone className="h-4 w-4 text-sky-600" /> {patient.mobileNumber}
-                </span>
-                {patient.alternateMobile && <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm"><Phone className="h-4 w-4 text-violet-600" /> {patient.alternateMobile}</span>}
-                {patient.email && <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm"><Mail className="h-4 w-4 text-emerald-600" /> {patient.email}</span>}
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <Badge variant="secondary">{patient.gender}</Badge>
+                <Badge variant="secondary">{patient.age} yrs</Badge>
+                {patient.blood_group && <Badge variant="secondary">{patient.blood_group}</Badge>}
+                {patient.marital_status && <Badge variant="secondary">{patient.marital_status}</Badge>}
+                {patient.occupation && <Badge variant="secondary">{patient.occupation}</Badge>}
+                {patient.lmp && <Badge variant="secondary">LMP: {patient.lmp}</Badge>}
+                {patient.menstrual_cycle_days && <Badge variant="secondary">Cycle: {patient.menstrual_cycle_days}d</Badge>}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {patient.maritalStatus && <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.maritalStatus}</Badge>}
-                {patient.occupation && <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.occupation}</Badge>}
-                {patient.lmp && <Badge variant="secondary" className="bg-pink-50 text-pink-700">LMP: {patient.lmp}</Badge>}
-                {patient.menstrualCycleDays && <Badge variant="secondary" className="bg-pink-50 text-pink-700">Cycle: {patient.menstrualCycleDays}d</Badge>}
-                <Badge variant="secondary" className={khataBalance < 0 ? "bg-rose-50 text-rose-700" : khataBalance > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-700"}>
-                  Khata: {khataLabel}
-                </Badge>
-              </div>
+              {/* Khata Balance Indicator */}
+              {(patient.khata_balance ?? 0) !== 0 && (
+                <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                  <BookOpen className="w-4 h-4" />
+                  Khata: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:justify-end">
-            <Button size="sm" className="flex-1 bg-slate-900 text-white shadow-lg shadow-slate-200 hover:bg-slate-800 lg:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
-              <Edit className="w-4 h-4 mr-2" /> Edit Profile
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <Button variant="outline" size="sm" className="flex-1 md:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
+              <Edit className="w-4 h-4 mr-2" /> Edit
             </Button>
-            <Button variant="outline" size="sm" className="flex-1 border-rose-200 bg-white/80 text-rose-600 hover:bg-rose-50 hover:text-rose-700 lg:flex-none" onClick={async () => {
+            <Button variant="outline" size="sm" className="flex-1 md:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={async () => {
               const linked = await getPatientLinkedRecordCounts(patient.id!)
               const linkedSummary = [
                 linked.appointments ? `${linked.appointments} appointment${linked.appointments > 1 ? "s" : ""}` : "",
@@ -546,127 +472,105 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        <div className="relative mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {patientStats.map((stat) => (
-            <div key={stat.label} className={cn("rounded-[24px] border p-4 shadow-sm backdrop-blur", stat.shell)}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{stat.label}</p>
-                  <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{stat.value}</p>
-                </div>
-                <div className={cn("rounded-2xl p-3 shadow-lg", stat.iconShell)}>
-                  <stat.icon className="h-5 w-5" />
-                </div>
-              </div>
-              <p className="mt-3 text-sm text-slate-600">{stat.hint}</p>
-            </div>
-          ))}
-        </div>
-
         {/* Extended Details Grid */}
-        <div className="relative mt-6 grid grid-cols-1 gap-4 border-t border-white/60 pt-6 text-sm md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
           {patient.address?.line1 && (
-            <div className="rounded-[24px] border border-sky-100 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600">Address</span><p className="mt-2 text-sm leading-6 text-slate-700">{patient.address.line1}{patient.address.city ? `, ${patient.address.city}` : ""}{patient.address.state ? `, ${patient.address.state}` : ""}{patient.address.pincode ? ` - ${patient.address.pincode}` : ""}</p></div>
+            <div><span className="text-xs font-semibold text-slate-400 uppercase">Address</span><p className="text-slate-700 mt-0.5">{patient.address.line1}{patient.address.city ? `, ${patient.address.city}` : ""}{patient.address.state ? `, ${patient.address.state}` : ""}{patient.address.pincode ? ` - ${patient.address.pincode}` : ""}</p></div>
           )}
-          {patient.emergencyContact && (
-            <div className="rounded-[24px] border border-violet-100 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-600">Emergency Contact</span><p className="mt-2 text-sm font-medium text-slate-800">{patient.emergencyContact}</p></div>
+          {patient.emergency_contact && (
+            <div><span className="text-xs font-semibold text-slate-400 uppercase">Emergency Contact</span><p className="text-slate-700 mt-0.5">{patient.emergency_contact}</p></div>
           )}
           {patient.allergies && (
-            <div className="rounded-[24px] border border-rose-100 bg-rose-50/80 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-rose-500">Allergies</span><p className="mt-2 text-sm font-medium text-rose-700">{patient.allergies}</p></div>
+            <div><span className="text-xs font-semibold text-red-400 uppercase">Allergies</span><p className="text-red-600 font-medium mt-0.5">{patient.allergies}</p></div>
           )}
-          {patient.chronicDiseases && (
-            <div className="rounded-[24px] border border-amber-100 bg-amber-50/80 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-600">Chronic Diseases</span><p className="mt-2 text-sm font-medium text-amber-800">{patient.chronicDiseases}</p></div>
+          {patient.chronic_diseases && (
+            <div><span className="text-xs font-semibold text-orange-400 uppercase">Chronic Diseases</span><p className="text-orange-700 font-medium mt-0.5">{patient.chronic_diseases}</p></div>
           )}
-          {patient.dateOfBirth && (
-            <div className="rounded-[24px] border border-slate-200 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Date of Birth</span><p className="mt-2 text-sm font-medium text-slate-800">{patient.dateOfBirth}</p></div>
+          {patient.date_of_birth && (
+            <div><span className="text-xs font-semibold text-slate-400 uppercase">Date of Birth</span><p className="text-slate-700 mt-0.5">{patient.date_of_birth}</p></div>
           )}
           {patient.notes && (
-            <div className="rounded-[24px] border border-emerald-100 bg-white/85 p-4 shadow-sm md:col-span-2 xl:col-span-2"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">Notes</span><p className="mt-2 text-sm leading-6 text-slate-700">{patient.notes}</p></div>
+            <div className="col-span-2"><span className="text-xs font-semibold text-slate-400 uppercase">Notes</span><p className="text-slate-700 mt-0.5">{patient.notes}</p></div>
           )}
         </div>
 
         {/* Overall Medicines Section — always visible */}
         {hasPatientCareSummary && (
-          <div className="mt-6 rounded-[28px] border border-slate-200/80 bg-white/80 p-5 shadow-inner shadow-slate-100 backdrop-blur">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <div className="flex items-center justify-between gap-3 mb-4">
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
-                  <Activity className="h-4 w-4 text-sky-600" /> Patient Care Summary
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600" /> Patient Care Summary
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Saved clinical details and current medicines are grouped together here for quick review.
                 </p>
               </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Auto-refreshed after save</span>
+              <span className="text-xs text-slate-500">Auto-refreshed after save</span>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               {hasClinicalDetails && (
                 <div>
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
-                    <Activity className="h-4 w-4 text-sky-600" /> Clinical Details
+                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
                   </h4>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {clinicalSummaryItems.map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 px-4 py-3 shadow-sm">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                      <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
                         <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white px-4 py-3 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">Present Complaints</p>
-                    <p className="mt-1 text-sm text-slate-900">{patient.presentComplaints || "-"}</p>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
+                    <p className="mt-1 text-sm text-slate-900">{patient.present_complaints || "-"}</p>
                   </div>
                 </div>
               )}
 
               {hasSavedMedicines && (
-                <div className={cn(hasClinicalDetails && "border-t border-slate-200 pt-6")}>
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
-                    <Pill className="h-4 w-4 text-emerald-600" /> Current Medicines
+                <div className={hasClinicalDetails ? "border-t border-slate-200 pt-6" : ""}>
+                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
                   </h4>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-4 shadow-sm">
-                    <PatientMedicines medicines={normalizedSavedMedicines} readOnly />
-                  </div>
+                  <PatientMedicines medicines={normalizedSavedMedicines} readOnly onMedicinesChange={function (medicines: Medicine[]): void {
+                    throw new Error("Function not implemented.")
+                  } } />
                 </div>
               )}
             </div>
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/60 pt-6 sm:grid-cols-3">
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-sky-200 bg-white/80 text-slate-700 hover:bg-sky-50" onClick={() => router.push('/appointments')}>
-            <Calendar className="w-4 h-4 mr-2 text-sky-600" /> Book Appointment
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
+            <Calendar className="w-4 h-4 mr-2 text-blue-600" /> Book Appt
           </Button>
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-emerald-200 bg-white/80 text-slate-700 hover:bg-emerald-50" onClick={() => router.push('/visits')}>
-            <Pill className="w-4 h-4 mr-2 text-emerald-600" /> Record Visit
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/visits')}>
+            <Pill className="w-4 h-4 mr-2 text-green-600" /> New Visit
           </Button>
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50" onClick={() => setIsWhatsAppModalOpen(true)}>
-            <MessageSquare className="w-4 h-4 mr-2 text-violet-600" /> WhatsApp
+          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => setIsWhatsAppModalOpen(true)}>
+            <MessageSquare className="w-4 h-4 mr-2 text-green-500" /> WhatsApp
           </Button>
         </div>
 
-        <div className="mt-6 rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 p-6 shadow-[0_24px_80px_-42px_rgba(15,23,42,0.35)]">
-          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-sky-600" /> Update Patient Care
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Enter clinical details and current medicines together, then save each part when you are ready.
-              </p>
-            </div>
-            <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
-              Quick clinical workspace
-            </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-600" /> Update Patient Care
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Enter clinical details and current medicines together, then save each part when you are ready.
+            </p>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-            <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-[24px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-cyan-50 p-5 shadow-sm space-y-4">
+          <div className="space-y-6">
+            <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-[0.24em] flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-sky-600" /> Clinical Details
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">Track complaints, vitals, and repetition in one place.</p>
               </div>
@@ -676,8 +580,8 @@ export default function PatientDetailPage() {
                 <input
                   type="text"
                   placeholder="e.g. Fever, Headache since 2 days"
-                  value={clinicalDetailsFormData.presentComplaints}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, presentComplaints: e.target.value })}
+                  value={clinicalDetailsFormData.present_complaints}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, present_complaints: e.target.value })}
                   className={ic}
                   {...FORM_FIELD_PROPS}
                 />
@@ -702,8 +606,8 @@ export default function PatientDetailPage() {
                     type="number"
                     placeholder="e.g. 170"
                     step="0.1"
-                    value={clinicalDetailsFormData.heightCm}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, heightCm: e.target.value })}
+                    value={clinicalDetailsFormData.height_cm}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, height_cm: e.target.value })}
                     className={ic}
                     {...FORM_FIELD_PROPS}
                   />
@@ -756,16 +660,16 @@ export default function PatientDetailPage() {
               </div>
 
               <div className="pt-2 flex justify-end">
-                <Button type="submit" disabled={isSavingClinical} className="rounded-2xl bg-sky-600 text-white hover:bg-sky-700">
+                <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
                   {isSavingClinical ? "Saving..." : "Save Clinical Details"}
                 </Button>
               </div>
             </form>
 
-            <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-lime-50 p-5 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-[0.24em] flex items-center gap-2">
-                  <Pill className="w-4 h-4 text-emerald-600" /> Current Medicines
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Update medicines here and save once. Typing will not trigger notifications.
@@ -778,7 +682,6 @@ export default function PatientDetailPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-2xl border-slate-200 bg-white/80"
                   disabled={isSavingMedicines || !hasMedicineChanges}
                   onClick={() => setMedicineDraft(buildMedicineDraft())}
                 >
@@ -786,7 +689,6 @@ export default function PatientDetailPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
                   disabled={isSavingMedicines || !hasMedicineChanges}
                   onClick={handleSaveMedicines}
                 >
@@ -815,8 +717,8 @@ export default function PatientDetailPage() {
               <input
                 type="text"
                 placeholder="e.g. Fever, Headache since 2 days"
-                value={clinicalDetailsFormData.presentComplaints}
-                onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, presentComplaints: e.target.value })}
+                value={clinicalDetailsFormData.present_complaints}
+                onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, present_complaints: e.target.value })}
                 className={ic}
                 {...FORM_FIELD_PROPS}
               />
@@ -842,8 +744,8 @@ export default function PatientDetailPage() {
                   type="number"
                   placeholder="e.g. 170"
                   step="0.1"
-                  value={clinicalDetailsFormData.heightCm}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, heightCm: e.target.value })}
+                  value={clinicalDetailsFormData.height_cm}
+                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, height_cm: e.target.value })}
                   className={ic}
                   {...FORM_FIELD_PROPS}
                 />
@@ -909,28 +811,18 @@ export default function PatientDetailPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur">
-        <div className="flex min-w-max gap-2">
-          {tabItems.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "rounded-2xl px-5 py-3 text-sm font-medium transition-all whitespace-nowrap",
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-lg shadow-sky-100"
-                  : "bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-              )}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
+      <div className="flex border-b border-slate-200 overflow-x-auto">
+        {["visits", "appointments", "payments", "khata"].map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+            {tab === "khata" ? "Khata Ledger" : tab} ({tab === "visits" ? visits.length : tab === "appointments" ? appointments.length : tab === "payments" ? payments.length : (visits.length + payments.length)})
+          </button>
+        ))}
       </div>
 
       {activeTab === "visits" && (
         <div className="space-y-4">
-          {visits.length === 0 && <div className="rounded-[24px] border border-dashed border-sky-200 bg-gradient-to-br from-white to-sky-50 py-12 text-center text-sm text-slate-500">No visit records</div>}
+          {visits.length === 0 && <div className="py-12 text-center text-sm text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No visit records</div>}
           {visits.map(visit => (
             <VisitCard
               key={visit.id}
@@ -946,12 +838,12 @@ export default function PatientDetailPage() {
 
       {activeTab === "appointments" && (
         <div className="space-y-3">
-          {appointments.length === 0 && <div className="rounded-[24px] border border-dashed border-amber-200 bg-gradient-to-br from-white to-amber-50 py-12 text-center text-sm text-slate-500">No appointments</div>}
+          {appointments.length === 0 && <div className="py-12 text-center text-sm text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No appointments</div>}
           {appointments.map(apt => (
-            <div key={apt.id} className="flex items-center justify-between rounded-[24px] border border-amber-100 bg-gradient-to-r from-white to-amber-50/60 p-4 shadow-sm">
+            <div key={apt.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-900">{apt.appointmentDate} at {apt.timeSlot}</p>
-                <p className="text-xs text-slate-500 mt-1">{apt.type}</p>
+                <p className="text-sm font-medium text-slate-900">{apt.appointment_date}</p>
+                <p className="text-xs text-slate-500">{apt.time_slot} • {apt.type}</p>
               </div>
               <Badge variant={apt.status === "completed" ? "completed" : apt.status === "cancelled" ? "destructive" : "pending"}>{apt.status}</Badge>
             </div>
@@ -961,12 +853,12 @@ export default function PatientDetailPage() {
 
       {activeTab === "payments" && (
         <div className="space-y-3">
-          {payments.length === 0 && <div className="rounded-[24px] border border-dashed border-emerald-200 bg-gradient-to-br from-white to-emerald-50 py-12 text-center text-sm text-slate-500">No payment records</div>}
+          {payments.length === 0 && <div className="py-12 text-center text-sm text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No payment records</div>}
           {payments.map(pay => (
-            <div key={pay.id} className="flex items-center justify-between rounded-[24px] border border-emerald-100 bg-gradient-to-r from-white to-emerald-50/60 p-4 shadow-sm">
+            <div key={pay.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-900">{formatCurrency(pay.amount)}</p>
-                <p className="text-xs text-slate-500 mt-1">{pay.date} • {pay.paymentMethod?.toUpperCase()}{pay.description ? ` - ${pay.description}` : ""}</p>
+                <p className="text-xs text-slate-500 mt-1">{pay.date} • {pay.payment_method?.toUpperCase()}{pay.description ? ` - ${pay.description}` : ""}</p>
               </div>
               <Badge variant={pay.status === "paid" ? "completed" : "pending"}>{pay.status}</Badge>
             </div>
@@ -976,16 +868,16 @@ export default function PatientDetailPage() {
 
       {activeTab === "khata" && (
         <div className="space-y-4">
-          <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/70 p-4 shadow-[0_24px_80px_-42px_rgba(15,23,42,0.35)]">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-sky-600" /> Khata Ledger (Passbook)
+                <BookOpen className="w-5 h-5 text-blue-600" /> Khata Ledger (Passbook)
               </h3>
-              <div className={`px-3 py-1 rounded-xl text-sm font-bold ${(patient.khataBalance || 0) < 0 ? 'bg-red-50 text-red-700' : (patient.khataBalance || 0) > 0 ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-700'}`}>
-                Balance: {(patient.khataBalance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khataBalance || 0))}` : formatCurrency(patient.khataBalance || 0)}
+              <div className={`px-3 py-1 rounded-lg text-sm font-bold ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-700' : (patient.khata_balance || 0) > 0 ? 'bg-green-50 text-green-700' : 'bg-slate-50 text-slate-700'}`}>
+                Balance: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : formatCurrency(patient.khata_balance || 0)}
               </div>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90">
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
                   <tr>
@@ -1000,23 +892,23 @@ export default function PatientDetailPage() {
                     // Combine visits (debits) and payments (credits) into one timeline
                     const entries: { date: string; sortKey: number; desc: string; debit: number; credit: number }[] = []
                     visits.forEach(v => {
-                      if (v.totalBill && v.totalBill > 0) {
-                        const visitDate = v.createdAt?.toDate?.()
+                      if (v.total_bill && v.total_bill > 0) {
+                        const visitDate = v.created_at ? new Date(v.created_at) : new Date()
                         entries.push({
-                          date: visitDate?.toLocaleDateString() || "-",
-                          sortKey: visitDate?.getTime() || 0,
+                          date: visitDate.toLocaleDateString() || "-",
+                          sortKey: visitDate.getTime() || 0,
                           desc: `Visit: ${v.diagnosis || "Consultation"}`,
-                          debit: v.totalBill,
+                          debit: v.total_bill,
                           credit: 0,
                         })
                       }
                     })
                     payments.forEach(p => {
-                      const paymentDate = p.date ? new Date(`${p.date}T00:00:00`) : p.createdAt?.toDate?.()
+                      const paymentDate = p.date ? new Date(`${p.date}T00:00:00`) : (p.created_at ? new Date(p.created_at) : new Date())
                       entries.push({
-                        date: p.date || paymentDate?.toLocaleDateString() || "-",
-                        sortKey: paymentDate?.getTime() || 0,
-                        desc: `Payment: ${p.paymentMethod?.toUpperCase() || ""}${p.description ? ` - ${p.description}` : ""}`,
+                        date: p.date || paymentDate.toLocaleDateString() || "-",
+                        sortKey: paymentDate.getTime() || 0,
+                        desc: `Payment: ${p.payment_method?.toUpperCase() || ""}${p.description ? ` - ${p.description}` : ""}`,
                         debit: 0,
                         credit: p.amount,
                       })

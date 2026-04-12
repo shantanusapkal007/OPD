@@ -15,19 +15,13 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'picsum.photos',
         port: '',
-        pathname: '/**', // This allows any path under the hostname
-      },
-      {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-        port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'clinicflow-d1503.firebasestorage.app',
+        hostname: 'nkxssehsjgctvenlevgi.supabase.co',
         port: '',
-        pathname: '/**',
+        pathname: '/storage/**',
       },
     ],
   },

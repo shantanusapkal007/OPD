@@ -1,30 +1,30 @@
-import { Timestamp } from "firebase/firestore";
-
 // ─── Users ───────────────────────────────────────────────
-export type UserRole = "admin";
+export type UserRole = "admin" | "doctor" | "receptionist" | "nurse";
 export type TreatmentType = "Allopathic" | "Homeopathic";
 
 export interface AppUser {
-  userId: string;
+  id: string;
   name: string;
   email: string;
   role: UserRole;
-  photoURL?: string;
-  createdAt: Timestamp;
+  photo_url?: string;
+  is_active?: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 // ─── Patients ────────────────────────────────────────────
 export interface Patient {
-  id?: string; // Firestore document ID
-  caseNumber: string;
-  treatmentType?: TreatmentType;
-  fullName: string;
-  mobileNumber: string;
-  alternateMobile?: string;
+  id?: string;
+  case_number: string;
+  treatment_type?: TreatmentType;
+  full_name: string;
+  mobile_number: string;
+  alternate_mobile?: string;
   gender: "Male" | "Female" | "Other";
-  dateOfBirth?: string;
+  date_of_birth?: string;
   age: number;
-  bloodGroup?: string;
+  blood_group?: string;
   address?: {
     line1?: string;
     city?: string;
@@ -33,26 +33,25 @@ export interface Patient {
   };
   email?: string;
   occupation?: string;
-  maritalStatus?: string;
+  marital_status?: string;
   allergies?: string;
-  chronicDiseases?: string;
-  emergencyContact?: string;
-  lmp?: string | null; // Last Menstrual Period for females
-  menstrualCycleDays?: number | null; // Menstrual cycle length in days
-  photo?: string; // URL from Firebase Storage
+  chronic_diseases?: string;
+  emergency_contact?: string;
+  lmp?: string | null;
+  menstrual_cycle_days?: number | null;
+  photo?: string;
   notes?: string;
-  currentMedicines?: Medicine[]; // Overall/regular medicines for the patient
-  // Clinical vitals (patient-level quick access)
-  presentComplaints?: string;
-  weight?: number | null; // kg
-  heightCm?: number | null; // cm
-  bp?: string; // e.g. "120/80"
-  temperature?: number | null; // °F
-  spo2?: number | null; // %
-  repetition?: string; // Medicine repetition schedule
-  khataBalance?: number; // Ledger balance (Negative = Owes Money, Positive = Advance)
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  current_medicines?: Medicine[];
+  present_complaints?: string;
+  weight?: number | null;
+  height_cm?: number | null;
+  bp?: string;
+  temperature?: number | null;
+  spo2?: number | null;
+  repetition?: string;
+  khata_balance?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Appointments ────────────────────────────────────────
@@ -60,16 +59,16 @@ export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no-sh
 
 export interface Appointment {
   id?: string;
-  patientId: string;
-  patientName: string; // denormalized for fast reads
-  doctorId?: string;
-  appointmentDate: string; // YYYY-MM-DD
-  timeSlot: string; // HH:mm
-  type: string; // "New Consultation" | "Follow-up" | "Routine Checkup"
+  patient_id: string;
+  patient_name: string;
+  doctor_id?: string;
+  appointment_date: string; // YYYY-MM-DD
+  time_slot: string; // HH:mm
+  type: string;
   status: AppointmentStatus;
   reason?: string;
   notes?: string;
-  createdAt: Timestamp;
+  created_at: string;
 }
 
 // ─── Visits (Case Papers) ────────────────────────────────
@@ -86,36 +85,38 @@ export interface Vitals {
   bp?: string;
   weight?: number;
   height?: number;
-  temperature?: number; // °F
-  pulse?: number; // bpm
-  spo2?: number; // %
-  respiratoryRate?: number; // breaths/min
+  temperature?: number;
+  pulse?: number;
+  spo2?: number;
+  respiratoryRate?: number;
 }
 
 export interface Visit {
   id?: string;
-  patientId: string;
-  patientName: string;
-  doctorId?: string;
-  visitImages?: string[];
-  // Clinical
+  patient_id: string;
+  patient_name: string;
+  doctor_id?: string;
+  visit_images?: string[];
   complaints: string;
-  historyOfPresentIllness?: string;
-  pastHistory?: string;
-  familyHistory?: string;
-  examinationFindings?: string;
+  history_of_present_illness?: string;
+  past_history?: string;
+  family_history?: string;
+  examination_findings?: string;
   diagnosis: string;
   prescriptions: Medicine[];
   vitals: Vitals;
-  labTests?: string;
-  investigationsAdvised?: string;
-  totalBill?: number; // Charge applied to Khata
-  paymentStatus?: "paid" | "unpaid";
+  lab_tests?: string;
+  investigations_advised?: string;
+  total_bill?: number;
+  payment_status?: "paid" | "unpaid";
   advice?: string;
   referral?: string;
-  followUpDate?: string;
-  followUpMessageEnabled?: boolean;
-  createdAt: Timestamp;
+  follow_up_date?: string;
+  follow_up_message_enabled?: boolean;
+  is_edited?: boolean;
+  edited_at?: string;
+  edited_by?: string;
+  created_at: string;
 }
 
 // ─── Payments ────────────────────────────────────────────
@@ -124,14 +125,29 @@ export type PaymentStatus = "paid" | "pending" | "refunded";
 
 export interface Payment {
   id?: string;
-  patientId: string;
-  patientName: string;
-  visitId?: string;
+  patient_id: string;
+  patient_name: string;
+  visit_id?: string;
   amount: number;
-  paymentMethod: PaymentMethod;
+  payment_method: PaymentMethod;
   status: PaymentStatus;
   description?: string;
-  transactionId?: string;
+  transaction_id?: string;
   date: string; // YYYY-MM-DD
-  createdAt: Timestamp;
+  created_at: string;
+}
+
+// ─── Clinic Settings ─────────────────────────────────────
+export interface ClinicSettings {
+  id?: string;
+  clinic_name: string;
+  doctor_name: string;
+  specialization: string;
+  registration_number?: string;
+  phone: string;
+  email: string;
+  address: string;
+  logo_url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
