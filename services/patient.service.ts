@@ -66,17 +66,22 @@ function stripUndefinedValues<T>(value: T): T {
 }
 
 // ─── Queries ─────────────────────────────────────────────
-export async function getPatients(): Promise<Patient[]> {
-  if (patientCache) return patientCache;
+export async function getPatients(limit?: number): Promise<Patient[]> {
+  if (patientCache && !limit) return patientCache;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("patients")
     .select("*")
     .order("created_at", { ascending: false });
 
+  if (limit) query = query.limit(limit);
+
+  const { data, error } = await query;
+
   if (error) throw new Error(error.message);
-  patientCache = (data ?? []) as Patient[];
-  return patientCache;
+  
+  if (!limit) patientCache = (data ?? []) as Patient[];
+  return (data ?? []) as Patient[];
 }
 
 export async function getNextPatientCaseNumber(): Promise<string> {
@@ -199,8 +204,11 @@ export async function getPatientLinkedRecordCounts(id: string) {
 }
 
 export async function getPatientCount(): Promise<number> {
-  const patients = await getPatients();
-  return patients.length;
+  const { count, error } = await supabase
+    .from("patients")
+    .select("*", { count: 'exact', head: true });
+  if (error) return 0;
+  return count ?? 0;
 }
 
 export async function updatePatientBalance(id: string, amount: number): Promise<void> {

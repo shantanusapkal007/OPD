@@ -16,6 +16,15 @@ export async function getOrCreateUser(
 
   if (existing) return existing as AppUser;
 
+  // Verify Email Whitelist
+  const allowedEmailsStr = process.env.NEXT_PUBLIC_ALLOWED_EMAILS || "";
+  if (allowedEmailsStr) {
+    const allowedEmails = allowedEmailsStr.split(",").map(e => e.trim().toLowerCase());
+    if (!allowedEmails.includes(email.toLowerCase())) {
+      throw new Error(`Access Denied: The email ${email} is not authorized for this clinic.`);
+    }
+  }
+
   // First-time sign-in → create user record
   const newUser = {
     id: uid,

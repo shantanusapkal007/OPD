@@ -122,13 +122,17 @@ export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<
   return inserted.id;
 }
 
-export async function getUpcomingFollowUps(): Promise<Visit[]> {
+export async function getUpcomingFollowUps(limit?: number): Promise<Visit[]> {
   const today = new Date().toISOString().split("T")[0];
-  const { data, error } = await supabase
+  let query = supabase
     .from("visits")
     .select("*")
     .gte("follow_up_date", today)
     .order("follow_up_date", { ascending: true });
+
+  if (limit) query = query.limit(limit);
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
   return (data ?? []) as Visit[];

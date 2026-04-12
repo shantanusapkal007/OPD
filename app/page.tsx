@@ -34,8 +34,8 @@ export default function DashboardPage() {
           getAppointmentsByDate(todayStr),
           getTodayRevenue(),
           getPatientCount(),
-          getPatients(),
-          getUpcomingFollowUps(),
+          getPatients(10), // Only fetch the last 10 patients for the widget
+          getUpcomingFollowUps(10), // Only fetch top 10 follow-ups
         ])
 
         setStats({
