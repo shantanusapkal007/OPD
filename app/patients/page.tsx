@@ -126,22 +126,12 @@ export default function PatientsPage() {
         treatment_type: fd.get("treatment_type") as TreatmentType,
         full_name: `${fd.get("firstName")} ${fd.get("lastName")}`,
         mobile_number: fd.get("mobile") as string,
-        alternate_mobile: fd.get("alternate_mobile") as string || "",
         gender: selectedGender as "Male" | "Female" | "Other",
         date_of_birth: fd.get("dob") as string || "",
         age: parseInt(fd.get("age") as string) || 0,
         blood_group: fd.get("blood_group") as string || "",
-        email: fd.get("email") as string || "",
-        occupation: fd.get("occupation") as string || "",
-        marital_status: fd.get("marital_status") as string || "",
         department: fd.get("department") as Patient["department"] || undefined,
         setting: fd.get("setting") as Patient["setting"] || undefined,
-        address: {
-          line1: fd.get("addressLine1") as string || "",
-          city: fd.get("city") as string || "",
-          state: fd.get("state") as string || "",
-          pincode: fd.get("pincode") as string || "",
-        },
         allergies: fd.get("allergies") as string || "",
         chronic_diseases: fd.get("chronic_diseases") as string || "",
         emergency_contact: fd.get("emergency_contact") as string || "",
@@ -269,36 +259,10 @@ export default function PatientsPage() {
               </div>
             </div>
           )}
-
-          {/* Contact */}
-          <h4 className={sectionTitle}>Contact Details</h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Alternate Mobile</label><input name="alternate_mobile" type="tel" className={inputClass} placeholder="Alternate number" {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className={labelClass}>Email</label><input name="email" type="email" className={inputClass} placeholder="patient@email.com" {...FORM_FIELD_PROPS} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Emergency Contact</label><input name="emergency_contact" type="tel" className={inputClass} placeholder="Emergency number" {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className={labelClass}>Occupation</label><input name="occupation" type="text" className={inputClass} placeholder="e.g. Teacher" {...FORM_FIELD_PROPS} /></div>
-          </div>
-
-          {/* Address */}
-          <h4 className={sectionTitle}>Address</h4>
-          <div className="space-y-1"><label className={labelClass}>Address Line</label><input name="addressLine1" type="text" className={inputClass} placeholder="House/Street/Area" {...FORM_FIELD_PROPS} /></div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1"><label className={labelClass}>City</label><input name="city" type="text" className={inputClass} placeholder="City" {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className={labelClass}>State</label><input name="state" type="text" className={inputClass} placeholder="Maharashtra" {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className={labelClass}>Pincode</label><input name="pincode" type="text" className={inputClass} placeholder="411001" {...FORM_FIELD_PROPS} /></div>
-          </div>
-
           {/* Personal */}
           <h4 className={sectionTitle}>Personal & Medical</h4>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className={labelClass}>Marital Status</label>
-              <select name="marital_status" className={inputClass} {...FORM_FIELD_PROPS}>
-                <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
-              </select>
-            </div>
+            <div className="space-y-1"><label className={labelClass}>Emergency Contact</label><input name="emergency_contact" type="tel" className={inputClass} placeholder="Emergency number" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>Allergies</label><input name="allergies" type="text" className={inputClass} placeholder="e.g. Penicillin" {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronic_diseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" {...FORM_FIELD_PROPS} /></div>

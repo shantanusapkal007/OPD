@@ -172,22 +172,12 @@ export default function PatientDetailPage() {
         treatment_type: fd.get("treatment_type") as TreatmentType,
         full_name: `${fd.get("firstName")} ${fd.get("lastName")}`,
         mobile_number: fd.get("mobile") as string,
-        alternate_mobile: fd.get("alternate_mobile") as string || "",
         age: parseInt(fd.get("age") as string) || 0,
         gender: editGender as "Male" | "Female" | "Other",
         date_of_birth: fd.get("dob") as string || "",
         blood_group: fd.get("blood_group") as string || "",
         department: fd.get("department") as Patient["department"] || undefined,
         setting: fd.get("setting") as Patient["setting"] || undefined,
-        email: fd.get("email") as string || "",
-        occupation: fd.get("occupation") as string || "",
-        marital_status: fd.get("marital_status") as string || "",
-        address: {
-          line1: fd.get("addressLine1") as string || "",
-          city: fd.get("city") as string || "",
-          state: fd.get("state") as string || "",
-          pincode: fd.get("pincode") as string || "",
-        },
         allergies: fd.get("allergies") as string || "",
         chronic_diseases: fd.get("chronic_diseases") as string || "",
         emergency_contact: fd.get("emergency_contact") as string || "",
@@ -356,25 +346,7 @@ export default function PatientDetailPage() {
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternate_mobile" defaultValue={patient.alternate_mobile} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Email</label><input name="email" type="email" defaultValue={patient.email} className={ic} {...FORM_FIELD_PROPS} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergency_contact" defaultValue={patient.emergency_contact} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Occupation</label><input name="occupation" defaultValue={patient.occupation} className={ic} {...FORM_FIELD_PROPS} /></div>
-          </div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Address</label><input name="addressLine1" defaultValue={patient.address?.line1} className={ic} {...FORM_FIELD_PROPS} /></div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">City</label><input name="city" defaultValue={patient.address?.city} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">State</label><input name="state" defaultValue={patient.address?.state} className={ic} {...FORM_FIELD_PROPS} /></div>
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Pincode</label><input name="pincode" defaultValue={patient.address?.pincode} className={ic} {...FORM_FIELD_PROPS} /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Marital Status</label>
-              <select name="marital_status" defaultValue={patient.marital_status} className={ic} {...FORM_FIELD_PROPS}>
-                <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
-              </select>
-            </div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Allergies</label><input name="allergies" defaultValue={patient.allergies} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronic_diseases" defaultValue={patient.chronic_diseases} className={ic} {...FORM_FIELD_PROPS} /></div>
