@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# OPD Clinic
 
-# Run and deploy your AI Studio app
+OPD Clinic is a Next.js-based clinic management app for patient records, appointments, visits, payments, and role-based staff access.
 
-This contains everything you need to run your app locally.
+## Local setup
 
-View your app in AI Studio: https://ai.studio/apps/2a9d83a8-25ea-4c57-a2e5-41b4682afb7c
+Prerequisites:
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+- Node.js 20+
+- A Supabase project with auth, database tables, and storage configured
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Copy `.env.example` to `.env.local`
+3. Fill in these required variables from Supabase Project Settings > API:
+   `NEXT_PUBLIC_SUPABASE_URL`
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Optionally set:
+   `NEXT_PUBLIC_APP_NAME`
+   `NEXT_PUBLIC_ALLOWED_EMAILS`
+5. Verify the environment:
+   `npm run verify-env`
+6. Start the app:
    `npm run dev`
+
+## Production checks
+
+- `npm run lint`
+- `npm run build`
+- `npm run verify-env`
+
+## Deployment notes
+
+- Mirror the same public env vars in your production host before deploying.
+- Google OAuth must include your production callback domain in Supabase Auth settings.
+- The OAuth callback route persists the session server-side, so production auth depends on the Supabase URL and anon key being correct.
