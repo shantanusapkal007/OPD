@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
 import { EditVisitModal } from "@/components/visits/edit-visit-modal"
 import { VisitCard } from "@/components/visits/visit-card"
-import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { cn, formatCurrency, getTreatmentType } from "@/lib/utils"
 import { canViewClinical, canViewFinancial } from "@/lib/access"
@@ -64,7 +63,10 @@ export default function PatientDetailPage() {
   const [isSavingMedicines, setIsSavingMedicines] = useState(false)
   const { showToast } = useToast()
 
-  const buildMedicineDraft = () => [] as Medicine[]
+  const buildMedicineDraft = (medicines: Medicine[] = []) =>
+    medicines.map((medicine) => ({
+      ...medicine,
+    }))
 
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
     present_complaints: nextPatient?.present_complaints || "",
@@ -110,6 +112,7 @@ export default function PatientDetailPage() {
     setEditGender(nextPatient.gender)
     setEditTreatmentType(getTreatmentType(nextPatient.case_number, nextPatient.treatment_type))
     setEditMedicines(nextPatient.current_medicines || [])
+    setMedicineDraft(buildMedicineDraft(nextPatient.current_medicines || []))
   }
 
   useEffect(() => {
@@ -131,7 +134,7 @@ export default function PatientDetailPage() {
           setEditGender(p.gender)
           setEditTreatmentType(getTreatmentType(p.case_number, p.treatment_type))
           setEditMedicines(p.current_medicines || [])
-          setMedicineDraft(buildMedicineDraft())
+          setMedicineDraft(buildMedicineDraft(p.current_medicines || []))
           setClinicalDetailsFormData(buildClinicalDetailsFormData(p))
         }
       } catch (e) {
@@ -207,7 +210,6 @@ export default function PatientDetailPage() {
       const updated = await getPatient(patient.id)
       setPatient(updated)
       resetEditFormState(updated)
-      setMedicineDraft(buildMedicineDraft())
       setIsEditModalOpen(false)
     } catch (e: any) {
       showToast(e.message || "Failed to update patient.", "error")
@@ -253,7 +255,7 @@ export default function PatientDetailPage() {
       const updated = await getPatient(patient.id)
       setPatient(updated)
       setEditMedicines(updated?.current_medicines || [])
-      setMedicineDraft(buildMedicineDraft())
+      setMedicineDraft(buildMedicineDraft(updated?.current_medicines || []))
       showToast("Current medicines saved", "success")
     } catch (e: any) {
       showToast(e.message || "Failed to save medicines", "error")
@@ -438,7 +440,7 @@ export default function PatientDetailPage() {
         />
       )}
 
-      {/* Patient Profile Card — Premium Codex Style */}
+      {/* Patient Profile Card - Premium Codex Style */}
       <div className="relative overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-[0_24px_80px_-36px_rgba(14,116,144,0.35)] sm:p-8">
         <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.2),_transparent_45%),radial-gradient(circle_at_left,_rgba(16,185,129,0.16),_transparent_30%)]" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -512,7 +514,7 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        {/* Extended Details Grid — Premium Style */}
+        {/* Extended Details Grid - Premium Style */}
         <div className="relative mt-6 grid grid-cols-1 gap-4 border-t border-white/60 pt-6 text-sm md:grid-cols-2 xl:grid-cols-4">
           {patient.address?.line1 && (
             <div className="rounded-[24px] border border-sky-100 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600">Address</span><p className="mt-2 text-sm leading-6 text-slate-700">{patient.address.line1}{patient.address.city ? `, ${patient.address.city}` : ""}{patient.address.state ? `, ${patient.address.state}` : ""}{patient.address.pincode ? ` - ${patient.address.pincode}` : ""}</p></div>
@@ -534,7 +536,7 @@ export default function PatientDetailPage() {
           )}
         </div>
 
-        {/* Patient Care Summary — visible only for clinical users */}
+        {/* Patient Care Summary - visible only for clinical users */}
         {showClinical && hasPatientCareSummary && (
           <div className="mt-6 rounded-[28px] border border-slate-200/80 bg-white/80 p-5 shadow-inner shadow-slate-100 backdrop-blur">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -724,7 +726,7 @@ export default function PatientDetailPage() {
                     type="button"
                     variant="outline"
                     disabled={isSavingMedicines || !hasMedicineChanges}
-                    onClick={() => setMedicineDraft(buildMedicineDraft())}
+                    onClick={() => setMedicineDraft(buildMedicineDraft(savedMedicines))}
                   >
                     Reset
                   </Button>
@@ -741,116 +743,6 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        {/* Clinical Details Form */}
-        {showClinical && <div className="hidden">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-600" /> Update Clinical Details
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">These values save into the clinical details section above.</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="space-y-4">
-            {/* Present Complaints */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Present Complaints</label>
-              <input
-                type="text"
-                placeholder="e.g. Fever, Headache since 2 days"
-                value={clinicalDetailsFormData.present_complaints}
-                onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, present_complaints: e.target.value })}
-                className={ic}
-                {...FORM_FIELD_PROPS}
-              />
-            </div>
-
-            {/* Vitals Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">WT (KG)</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 70"
-                  step="0.1"
-                  value={clinicalDetailsFormData.weight}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, weight: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">HT (CM)</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 170"
-                  step="0.1"
-                  value={clinicalDetailsFormData.height_cm}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, height_cm: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">BP (MMHG)</label>
-                <input
-                  type="text"
-                  placeholder="120/80"
-                  value={clinicalDetailsFormData.bp}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, bp: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">TEMP (°F)</label>
-                <input
-                  type="number"
-                  placeholder="98.6"
-                  step="0.1"
-                  value={clinicalDetailsFormData.temperature}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, temperature: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-            </div>
-
-            {/* SPO2 & Repetition */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">SPO2 (%)</label>
-                <input
-                  type="number"
-                  placeholder="e.g. 98"
-                  value={clinicalDetailsFormData.spo2}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, spo2: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Repetition</label>
-                <input
-                  type="text"
-                  placeholder="e.g., BD, TDS"
-                  value={clinicalDetailsFormData.repetition}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, repetition: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="pt-4 flex justify-end">
-              <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
-                {isSavingClinical ? "Saving..." : "Save Details"}
-              </Button>
-            </div>
-          </form>
-        </div>}
       </div>
 
       <div className="flex border-b border-slate-200 overflow-x-auto">
@@ -889,7 +781,7 @@ export default function PatientDetailPage() {
             <div key={apt.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-900">{apt.appointment_date}</p>
-                <p className="text-xs text-slate-500">{apt.time_slot} • {apt.type}</p>
+                <p className="text-xs text-slate-500">{apt.time_slot} - {apt.type}</p>
               </div>
               <Badge variant={apt.status === "completed" ? "completed" : apt.status === "cancelled" ? "destructive" : "pending"}>{apt.status}</Badge>
             </div>
@@ -904,7 +796,7 @@ export default function PatientDetailPage() {
             <div key={pay.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-900">{formatCurrency(pay.amount)}</p>
-                <p className="text-xs text-slate-500 mt-1">{pay.date} • {pay.payment_method?.toUpperCase()}{pay.description ? ` - ${pay.description}` : ""}</p>
+                <p className="text-xs text-slate-500 mt-1">{pay.date} - {pay.payment_method?.toUpperCase()}{pay.description ? ` - ${pay.description}` : ""}</p>
               </div>
               <Badge variant={pay.status === "paid" ? "completed" : "pending"}>{pay.status}</Badge>
             </div>

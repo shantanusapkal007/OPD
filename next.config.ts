@@ -1,40 +1,41 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Allow access to remote image placeholder.
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "picsum.photos",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'nkxssehsjgctvenlevgi.supabase.co',
-        port: '',
-        pathname: '/storage/**',
+        protocol: "https",
+        hostname: "nkxssehsjgctvenlevgi.supabase.co",
+        port: "",
+        pathname: "/storage/**",
       },
     ],
   },
-  transpilePackages: ['motion'],
-  webpack: (config, {dev}) => {
+  transpilePackages: ["motion"],
+  webpack: (config, { dev }) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
-    // Do not modifyÃ¢Â€Â”file watching is disabled to prevent flickering during agent edits.
-    if (dev && process.env.DISABLE_HMR === 'true') {
+    // File watching is disabled to prevent flickering during agent edits.
+    if (dev && process.env.DISABLE_HMR === "true") {
       config.watchOptions = {
         ignored: /.*/,
-      };
+      }
     }
-    return config;
+
+    return config
   },
   async headers() {
     return [
@@ -47,8 +48,8 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

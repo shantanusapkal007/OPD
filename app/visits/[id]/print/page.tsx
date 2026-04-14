@@ -1,12 +1,13 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getVisit } from "@/services/visit.service"
+import { ArrowLeft, Printer } from "lucide-react"
 import { getPatient } from "@/services/patient.service"
+import { getVisit } from "@/services/visit.service"
 import { getClinicSettings } from "@/services/clinic-settings.service"
-import { Visit, Patient, ClinicSettings } from "@/lib/types"
-import { Printer, ArrowLeft } from "lucide-react"
+import type { ClinicSettings, Patient, Visit } from "@/lib/types"
 
 export default function PrintPrescriptionPage() {
   const params = useParams()
@@ -21,167 +22,205 @@ export default function PrintPrescriptionPage() {
   useEffect(() => {
     async function loadData() {
       if (!visitId) return
+
       try {
-        const [v, clinicSettings] = await Promise.all([
+        const [visitRecord, clinicSettings] = await Promise.all([
           getVisit(visitId),
           getClinicSettings(),
         ])
+
         setSettings(clinicSettings)
 
-        if (v && v.patient_id) {
-          setVisit(v)
-          const p = await getPatient(v.patient_id)
-          setPatient(p)
+        if (visitRecord?.patient_id) {
+          setVisit(visitRecord)
+          const patientRecord = await getPatient(visitRecord.patient_id)
+          setPatient(patientRecord)
         }
-      } catch (err) {
-        console.error("Failed to load for printing", err)
+      } catch (error) {
+        console.error("Failed to load prescription print view", error)
       } finally {
         setLoading(false)
       }
     }
+
     loadData()
   }, [visitId])
 
-  if (loading) return <div className="p-8 text-center bg-white text-black min-h-screen">Loading prescription...</div>
-  if (!visit || !patient) return <div className="p-8 text-center text-red-500 bg-white text-black min-h-screen">Record not found</div>
+  if (loading) {
+    return <div className="min-h-screen bg-white p-8 text-center text-black">Loading prescription...</div>
+  }
+
+  if (!visit || !patient) {
+    return <div className="min-h-screen bg-white p-8 text-center text-red-500">Record not found</div>
+  }
 
   const patientName = patient.full_name || visit.patient_name || "-"
   const patientAge = patient.age ? `${patient.age} Yrs` : "-"
   const patientGender = patient.gender || "-"
   const visitDate = visit.created_at ? new Date(visit.created_at).toLocaleDateString() : "-"
+  const logoUrl = settings?.logo_url?.trim() || ""
   const clinicName = settings?.clinic_name?.trim() || "Clinic header placeholder"
-  const headerLine = [settings?.doctor_name, settings?.specialization].filter(Boolean).join(" | ") || "Doctor name and specialization placeholder"
-  const contactLine = [settings?.address, settings?.phone, settings?.email].filter(Boolean).join(" | ") || "Clinic address, phone, and email placeholder"
+  const headerLine =
+    [settings?.doctor_name, settings?.specialization].filter(Boolean).join(" | ") ||
+    "Doctor name and specialization placeholder"
+  const contactLine =
+    [settings?.address, settings?.phone, settings?.email].filter(Boolean).join(" | ") ||
+    "Clinic address, phone, and email placeholder"
 
   return (
-    <div className="bg-white text-black min-h-screen">
-      {/* Non-printable controls */}
-      <div className="print:hidden p-4 bg-slate-100 border-b flex justify-between items-center max-w-4xl mx-auto rounded-b-xl mb-8">
-        <button onClick={() => router.back()} className="flex items-center space-x-2 text-slate-700 hover:text-slate-900 bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200 font-medium">
-          <ArrowLeft className="w-4 h-4" />
+    <div className="min-h-screen bg-white text-black">
+      <div className="mx-auto mb-8 flex max-w-4xl items-center justify-between rounded-b-xl border-b bg-slate-100 p-4 print:hidden">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center space-x-2 rounded-lg border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 shadow-sm hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
-        <button onClick={() => window.print()} className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-blue-700">
-          <Printer className="w-4 h-4" />
+        <button
+          onClick={() => window.print()}
+          className="flex items-center space-x-2 rounded-lg bg-blue-600 px-6 py-2 font-medium text-white shadow-sm hover:bg-blue-700"
+        >
+          <Printer className="h-4 w-4" />
           <span>Print Prescription</span>
         </button>
       </div>
 
-      {/* Printable Area - styled explicitly for paper */}
-      <div className="max-w-3xl mx-auto p-8 border border-slate-200 shadow-sm print:shadow-none print:border-none print:p-0">
-        
-        {/* Clinic Header */}
-        <header className="border-b-2 border-slate-800 pb-4 mb-6">
+      <div className="mx-auto max-w-3xl border border-slate-200 p-8 shadow-sm print:border-none print:p-0 print:shadow-none">
+        <header className="mb-6 border-b-2 border-slate-800 pb-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 overflow-hidden">
-              <img
-                src={settings?.logo_url || ""}
-                alt="Clinic logo placeholder"
-                className="h-full w-full object-contain"
-              />
+            <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt="Clinic logo"
+                  fill
+                  sizes="80px"
+                  unoptimized
+                  className="object-contain"
+                />
+              ) : (
+                <div className="px-2 text-center text-[11px] font-medium leading-4 text-slate-400">
+                  Clinic logo
+                </div>
+              )}
             </div>
             <div className="flex-1 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Clinic Header</p>
               <h1 className="mt-2 text-3xl font-bold uppercase tracking-wider text-slate-900">{clinicName}</h1>
-              <p className="text-sm text-slate-600 mt-1">{headerLine}</p>
+              <p className="mt-1 text-sm text-slate-600">{headerLine}</p>
               <p className="text-sm text-slate-600">{contactLine}</p>
             </div>
           </div>
         </header>
 
-        {/* Patient Info Block */}
-        <div className="flex justify-between items-start mb-8 text-sm p-4 bg-slate-50 rounded-lg print:bg-transparent print:p-0 print:rounded-none">
+        <div className="mb-8 flex items-start justify-between rounded-lg bg-slate-50 p-4 text-sm print:rounded-none print:bg-transparent print:p-0">
           <div>
-            <p><span className="font-semibold text-slate-600 uppercase text-xs">Patient Name:</span> <span className="font-bold text-base">{patientName}</span></p>
-            <p className="mt-1"><span className="font-semibold text-slate-600 uppercase text-xs">Age / Sex:</span> {patientAge} / {patientGender}</p>
-            {patient.mobile_number && <p className="mt-1"><span className="font-semibold text-slate-600 uppercase text-xs">Mobile:</span> {patient.mobile_number}</p>}
+            <p>
+              <span className="text-xs font-semibold uppercase text-slate-600">Patient Name:</span>{" "}
+              <span className="text-base font-bold">{patientName}</span>
+            </p>
+            <p className="mt-1">
+              <span className="text-xs font-semibold uppercase text-slate-600">Age / Sex:</span> {patientAge} / {patientGender}
+            </p>
+            {patient.mobile_number ? (
+              <p className="mt-1">
+                <span className="text-xs font-semibold uppercase text-slate-600">Mobile:</span> {patient.mobile_number}
+              </p>
+            ) : null}
           </div>
           <div className="text-right">
-            <p><span className="font-semibold text-slate-600 uppercase text-xs">Date:</span> <span className="font-bold font-mono">{visitDate}</span></p>
-            {patient.case_number && visit.id && <p className="mt-1"><span className="font-semibold text-slate-600 uppercase text-xs">Visit ID:</span> {visit.id.slice(0, 8).toUpperCase()}</p>}
+            <p>
+              <span className="text-xs font-semibold uppercase text-slate-600">Date:</span>{" "}
+              <span className="font-mono font-bold">{visitDate}</span>
+            </p>
+            {patient.case_number && visit.id ? (
+              <p className="mt-1">
+                <span className="text-xs font-semibold uppercase text-slate-600">Visit ID:</span> {visit.id.slice(0, 8).toUpperCase()}
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {/* Clinical Info & Vitals */}
         <div className="mb-8 grid grid-cols-3 gap-6">
           <div className="col-span-1 border-r border-slate-200 pr-6 print:border-slate-800">
-            <h2 className="text-xs font-bold uppercase text-slate-500 mb-3 border-b pb-1">Vitals & Assessment</h2>
-            {visit.vitals && Object.values(visit.vitals).some(v => v) ? (
-              <ul className="text-sm space-y-2">
-                {visit.vitals.weight && <li><span className="font-semibold">WT:</span> {visit.vitals.weight} kg</li>}
-                {visit.vitals.bp && <li><span className="font-semibold">BP:</span> {visit.vitals.bp}</li>}
-                {visit.vitals.pulse && <li><span className="font-semibold">PR:</span> {visit.vitals.pulse} bpm</li>}
-                {visit.vitals.temperature && <li><span className="font-semibold">Temp:</span> {visit.vitals.temperature}°F</li>}
-                {visit.vitals.spo2 && <li><span className="font-semibold">SpO2:</span> {visit.vitals.spo2}%</li>}
+            <h2 className="mb-3 border-b pb-1 text-xs font-bold uppercase text-slate-500">Vitals & Assessment</h2>
+            {visit.vitals && Object.values(visit.vitals).some((value) => value) ? (
+              <ul className="space-y-2 text-sm">
+                {visit.vitals.weight ? <li><span className="font-semibold">WT:</span> {visit.vitals.weight} kg</li> : null}
+                {visit.vitals.bp ? <li><span className="font-semibold">BP:</span> {visit.vitals.bp}</li> : null}
+                {visit.vitals.pulse ? <li><span className="font-semibold">PR:</span> {visit.vitals.pulse} bpm</li> : null}
+                {visit.vitals.temperature ? <li><span className="font-semibold">Temp:</span> {visit.vitals.temperature} deg F</li> : null}
+                {visit.vitals.spo2 ? <li><span className="font-semibold">SpO2:</span> {visit.vitals.spo2}%</li> : null}
               </ul>
             ) : (
-              <p className="text-sm text-slate-400 italic">Not recorded</p>
+              <p className="text-sm italic text-slate-400">Not recorded</p>
             )}
 
-            {visit.complaints && (
+            {visit.complaints ? (
               <div className="mt-6">
-                <h3 className="text-xs font-bold uppercase text-slate-500 mb-1">Chief Complaints</h3>
+                <h3 className="mb-1 text-xs font-bold uppercase text-slate-500">Chief Complaints</h3>
                 <p className="text-sm">{visit.complaints}</p>
               </div>
-            )}
-            
-            {visit.diagnosis && (
+            ) : null}
+
+            {visit.diagnosis ? (
               <div className="mt-6">
-                <h3 className="text-xs font-bold uppercase text-slate-500 mb-1">Diagnosis</h3>
+                <h3 className="mb-1 text-xs font-bold uppercase text-slate-500">Diagnosis</h3>
                 <p className="text-sm font-semibold">{visit.diagnosis}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
-          {/* Rx Section */}
           <div className="col-span-2">
-            <div className="flex items-end mb-4">
-              <span className="text-4xl font-serif font-bold text-slate-800 leading-none mr-2">Rx</span>
+            <div className="mb-4 flex items-end">
+              <span className="mr-2 text-4xl font-serif font-bold leading-none text-slate-800">Rx</span>
             </div>
-            
+
             {visit.prescriptions && visit.prescriptions.length > 0 ? (
               <ul className="space-y-4 text-sm">
-                {visit.prescriptions.map((med, idx) => (
-                  <li key={idx} className="border-b border-dashed border-slate-200 pb-2">
-                    <div className="font-bold text-base">{idx + 1}. {med.name}</div>
-                    <div className="flex justify-between items-center mt-1 text-slate-700">
-                      <span>{med.dosage} ~ {med.frequency}</span>
-                      <span className="font-medium whitespace-nowrap bg-slate-100 px-2 py-0.5 rounded print:bg-transparent print:border print:border-slate-300">For {med.days} Days</span>
+                {visit.prescriptions.map((medicine, index) => (
+                  <li key={index} className="border-b border-dashed border-slate-200 pb-2">
+                    <div className="text-base font-bold">{index + 1}. {medicine.name}</div>
+                    <div className="mt-1 flex items-center justify-between text-slate-700">
+                      <span>{medicine.dosage} ~ {medicine.frequency}</span>
+                      <span className="whitespace-nowrap rounded bg-slate-100 px-2 py-0.5 font-medium print:border print:border-slate-300 print:bg-transparent">
+                        For {medicine.days} Days
+                      </span>
                     </div>
-                    {med.notes && <p className="italic text-slate-500 mt-1 mt-1 text-xs">{med.notes}</p>}
+                    {medicine.notes ? <p className="mt-1 text-xs italic text-slate-500">{medicine.notes}</p> : null}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-slate-400 italic mt-8">No medications prescribed in this visit.</p>
+              <p className="mt-8 italic text-slate-400">No medications prescribed in this visit.</p>
             )}
 
-            {visit.advice && (
-              <div className="mt-8 pt-4 border-t border-slate-200">
-                <h3 className="text-xs font-bold uppercase text-slate-500 mb-2">Instructions / Advice</h3>
-                <p className="text-sm whitespace-pre-line leading-relaxed">{visit.advice}</p>
+            {visit.advice ? (
+              <div className="mt-8 border-t border-slate-200 pt-4">
+                <h3 className="mb-2 text-xs font-bold uppercase text-slate-500">Instructions / Advice</h3>
+                <p className="whitespace-pre-line text-sm leading-relaxed">{visit.advice}</p>
               </div>
-            )}
-            
-            {visit.follow_up_date && (
-              <div className="mt-6 inline-block bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 print:bg-transparent text-sm">
-                <span className="font-semibold text-slate-600 uppercase text-xs">Follow Up:</span> <span className="font-bold">{visit.follow_up_date}</span>
+            ) : null}
+
+            {visit.follow_up_date ? (
+              <div className="mt-6 inline-block rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm print:bg-transparent">
+                <span className="text-xs font-semibold uppercase text-slate-600">Follow Up:</span>{" "}
+                <span className="font-bold">{visit.follow_up_date}</span>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-24 pt-8 border-t-2 border-slate-800 flex justify-between items-end text-sm">
+        <div className="mt-24 flex items-end justify-between border-t-2 border-slate-800 pt-8 text-sm">
           <div className="text-slate-500">
             <p>Generated by OPD Clinic System</p>
           </div>
           <div className="text-center">
-            <div className="w-40 border-b border-slate-400 mb-2"></div>
-            <p className="font-semibold">Doctor's Signature</p>
+            <div className="mb-2 w-40 border-b border-slate-400" />
+            <p className="font-semibold">Doctor Signature</p>
           </div>
         </div>
-
       </div>
     </div>
   )

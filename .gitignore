@@ -3,5 +3,9 @@ node_modules/
 coverage/
 .DS_Store
 *.log
+*.tsbuildinfo
+.hospital_ref/
+diff_output*.txt
+scratch_*.js
 .env*
 !.env.example
