@@ -1,5 +1,6 @@
 "use client";
 
+import { InstallPrompt } from "@/components/pwa/install-prompt"
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { BottomNav } from "./bottom-nav"
@@ -38,6 +39,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Loading...</div>;
   }
 
+  if (pathname === '/offline') {
+    return <>{children}</>;
+  }
+
   if (pathname === '/login' && !user) {
     return <>{children}</>;
   }
@@ -65,6 +70,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <ToastContainer />
       <CommandPalette />
       <FloatingActionButton />
+      <InstallPrompt />
     </div>
   )
 }
