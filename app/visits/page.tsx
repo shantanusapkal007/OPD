@@ -66,7 +66,7 @@ export default function VisitsPage() {
   const setQuickFollowUp = (days: number) => {
     const d = new Date()
     d.setDate(d.getDate() + days)
-    const el = document.getElementsByName("followUpDate")[0] as HTMLInputElement
+    const el = document.getElementsByName("follow_up_date")[0] as HTMLInputElement
     if (el) el.value = d.toISOString().split("T")[0]
   }
 
@@ -328,7 +328,7 @@ export default function VisitsPage() {
         throw new Error("Chief complaints are required.")
       }
 
-      let visitImages = uploadedVisitImageUrls
+      let visit_images = uploadedVisitImageUrls
       const vitals = {
         bp: (fd.get("bp") as string || "").trim(),
         weight: parseOptionalInteger(fd.get("weight")),
@@ -346,9 +346,9 @@ export default function VisitsPage() {
       if (visitImageFiles.length > 0) {
         try {
           validateImageFiles(visitImageFiles, 10)
-          if (visitImages.length !== visitImageFiles.length) {
+          if (visit_images.length !== visitImageFiles.length) {
             const pendingUpload = visitImageUploadPromiseRef.current ?? uploadVisitImages(visitImageFiles)
-            visitImages = await pendingUpload
+            visit_images = await pendingUpload
           }
         } catch {
           throw new Error("Failed to upload visit images.")
@@ -358,20 +358,20 @@ export default function VisitsPage() {
       const newVisitId = await addVisit({
         patient_id: selectedPatient.id!,
         patient_name: selectedPatient.full_name,
-        visit_images: visitImages,
+        visit_images: visit_images,
         complaints: fd.get("complaints") as string || "",
         history_of_present_illness: fd.get("hpi") as string || "",
-        past_history: fd.get("pastHistory") as string || "",
+        past_history: fd.get("past_history") as string || "",
         family_history: fd.get("familyHistory") as string || "",
         examination_findings: fd.get("examination") as string || "",
         diagnosis: fd.get("diagnosis") as string || "",
-        total_bill: parseInt(fd.get("totalBill") as string) || 0,
-        lab_tests: fd.get("labTests") as string || "",
+        total_bill: parseInt(fd.get("total_bill") as string) || 0,
+        lab_tests: fd.get("lab_tests") as string || "",
         investigations_advised: fd.get("investigations") as string || "",
         advice: fd.get("advice") as string || "",
         referral: fd.get("referral") as string || "",
-        follow_up_date: fd.get("followUpDate") as string || "",
-        payment_status: (fd.get("paymentStatus") as "paid" | "unpaid") || "unpaid",
+        follow_up_date: fd.get("follow_up_date") as string || "",
+        payment_status: (fd.get("payment_status") as "paid" | "unpaid") || "unpaid",
         prescriptions: prescriptionsToSave,
         vitals: cleanedVitals,
       })
@@ -491,7 +491,7 @@ export default function VisitsPage() {
           <div className="space-y-1"><label className={lbl}>Chief Complaints *</label><textarea required name="complaints" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Fever since 3 days, headache, body ache..." {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className={lbl}>History of Present Illness</label><textarea name="hpi" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Detailed history of current illness..." {...FORM_FIELD_PROPS} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={lbl}>Past History</label><input name="pastHistory" className={ic} placeholder="Previous surgeries, illnesses..." {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={lbl}>Past History</label><input name="past_history" className={ic} placeholder="Previous surgeries, illnesses..." {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={lbl}>Family History</label><input name="familyHistory" className={ic} placeholder="Diabetes in family, etc" {...FORM_FIELD_PROPS} /></div>
           </div>
 
@@ -531,7 +531,7 @@ export default function VisitsPage() {
           {/* Investigations */}
           <h4 className={secHead}>Investigations & Lab</h4>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={lbl}>Lab Tests Done</label><input name="labTests" className={ic} placeholder="CBC, Urine, X-ray..." {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={lbl}>Lab Tests Done</label><input name="lab_tests" className={ic} placeholder="CBC, Urine, X-ray..." {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={lbl}>Investigations Advised</label><input name="investigations" className={ic} placeholder="MRI, Blood Sugar..." {...FORM_FIELD_PROPS} /></div>
           </div>
 
@@ -588,7 +588,7 @@ export default function VisitsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
                <div className="flex items-center justify-between"><label className={lbl}>Follow-up Date</label><div className="flex gap-1">{[3,5,7].map(d => <button type="button" key={d} onClick={() => setQuickFollowUp(d)} className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded focus:outline-none">+{d}d</button>)}</div></div>
-               <input name="followUpDate" type="date" className={ic} {...FORM_FIELD_PROPS} />
+               <input name="follow_up_date" type="date" className={ic} {...FORM_FIELD_PROPS} />
             </div>
             <div className="space-y-1"><label className={lbl}>Referral (if any)</label><input name="referral" className={ic} placeholder="Dr. XYZ, Cardiologist" {...FORM_FIELD_PROPS} /></div>
           </div>
@@ -599,11 +599,11 @@ export default function VisitsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-red-800">Total Bill (Rs.)</label>
-                <input name="totalBill" type="number" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" placeholder="500" {...FORM_FIELD_PROPS} />
+                <input name="total_bill" type="number" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" placeholder="500" {...FORM_FIELD_PROPS} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-red-800">Payment Status</label>
-                <select name="paymentStatus" defaultValue="unpaid" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" {...FORM_FIELD_PROPS}>
+                <select name="payment_status" defaultValue="unpaid" className="w-full h-10 px-3 rounded border border-red-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white" {...FORM_FIELD_PROPS}>
                   <option value="unpaid">Unpaid (Add to Khata)</option>
                   <option value="paid">Paid (Instantly)</option>
                 </select>

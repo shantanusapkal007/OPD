@@ -46,6 +46,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Redirecting...</div>;
   }
 
+  if (pathname.endsWith('/print')) {
+    return <div className="min-h-screen bg-white text-black p-0">{children}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />

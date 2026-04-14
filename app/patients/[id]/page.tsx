@@ -27,8 +27,8 @@ import { useToast } from "@/components/ui/toast"
 export default function PatientDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { user } = useAuth()
-  const patientId = params.id as string
+  const { user, isReceptionist } = useAuth()
+  const patient_id = params?.id as string
 
   const [patient, setPatient] = useState<Patient | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
@@ -113,10 +113,10 @@ export default function PatientDetailPage() {
       setLoading(true)
       try {
         const [p, v, pay, apt] = await Promise.all([
-          getPatient(patientId),
-          getVisitsByPatient(patientId),
-          getPaymentsByPatient(patientId),
-          getAppointmentsByPatient(patientId),
+          getPatient(patient_id),
+          getVisitsByPatient(patient_id),
+          getPaymentsByPatient(patient_id),
+          getAppointmentsByPatient(patient_id),
         ])
         setPatient(p)
         setVisits(v)
@@ -137,7 +137,7 @@ export default function PatientDetailPage() {
       }
     }
     load()
-  }, [patientId])
+  }, [patient_id])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -147,18 +147,18 @@ export default function PatientDetailPage() {
     const fd = new FormData(form)
     try {
       const updateData: any = {
-        caseNumber: fd.get("caseNumber") as string,
-        treatmentType: fd.get("treatmentType") as TreatmentType,
-        fullName: `${fd.get("firstName")} ${fd.get("lastName")}`,
-        mobileNumber: fd.get("mobile") as string,
-        alternateMobile: fd.get("alternateMobile") as string || "",
+        case_number: fd.get("case_number") as string,
+        treatment_type: fd.get("treatment_type") as TreatmentType,
+        full_name: `${fd.get("firstName")} ${fd.get("lastName")}`,
+        mobile_number: fd.get("mobile") as string,
+        alternate_mobile: fd.get("alternate_mobile") as string || "",
         age: parseInt(fd.get("age") as string) || 0,
         gender: editGender as "Male" | "Female" | "Other",
-        dateOfBirth: fd.get("dob") as string || "",
-        bloodGroup: fd.get("bloodGroup") as string || "",
+        date_of_birth: fd.get("dob") as string || "",
+        blood_group: fd.get("blood_group") as string || "",
         email: fd.get("email") as string || "",
         occupation: fd.get("occupation") as string || "",
-        maritalStatus: fd.get("maritalStatus") as string || "",
+        marital_status: fd.get("marital_status") as string || "",
         address: {
           line1: fd.get("addressLine1") as string || "",
           city: fd.get("city") as string || "",
@@ -166,15 +166,15 @@ export default function PatientDetailPage() {
           pincode: fd.get("pincode") as string || "",
         },
         allergies: fd.get("allergies") as string || "",
-        chronicDiseases: fd.get("chronicDiseases") as string || "",
-        emergencyContact: fd.get("emergencyContact") as string || "",
+        chronic_diseases: fd.get("chronic_diseases") as string || "",
+        emergency_contact: fd.get("emergency_contact") as string || "",
         notes: fd.get("notes") as string || "",
         current_medicines: editMedicines,
       };
 
       if (editGender === "Female") {
         updateData.lmp = fd.get("lmp") as string || "";
-        updateData.menstrual_cycle_days = parseInt(fd.get("menstrualCycleDays") as string) || null;
+        updateData.menstrual_cycle_days = parseInt(fd.get("menstrual_cycle_days") as string) || null;
       } else {
         updateData.lmp = null;
         updateData.menstrual_cycle_days = null;
@@ -202,9 +202,9 @@ export default function PatientDetailPage() {
     setIsSavingClinical(true)
     try {
       const updateData = {
-        presentComplaints: clinicalDetailsFormData.present_complaints.trim(),
+        present_complaints: clinicalDetailsFormData.present_complaints.trim(),
         weight: parseOptionalNumber(clinicalDetailsFormData.weight),
-        heightCm: parseOptionalNumber(clinicalDetailsFormData.height_cm),
+        height_cm: parseOptionalNumber(clinicalDetailsFormData.height_cm),
         bp: clinicalDetailsFormData.bp.trim(),
         temperature: parseOptionalNumber(clinicalDetailsFormData.temperature),
         spo2: parseOptionalNumber(clinicalDetailsFormData.spo2),
@@ -282,7 +282,7 @@ export default function PatientDetailPage() {
       <Modal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); resetEditFormState() }} title="Edit Patient">
         <form className="space-y-3 max-h-[70vh] overflow-y-auto pr-2" onSubmit={handleSave} {...FORM_PROPS}>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="caseNumber" defaultValue={patient.case_number} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Case Number</label><input required name="case_number" defaultValue={patient.case_number} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Mobile</label><input required name="mobile" type="tel" defaultValue={patient.mobile_number} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -297,14 +297,14 @@ export default function PatientDetailPage() {
               </select>
             </div>
             <div className="space-y-1 col-span-2"><label className="text-sm font-medium text-slate-700">Treatment Type</label>
-              <select name="treatmentType" value={editTreatmentType} onChange={(e) => setEditTreatmentType(e.target.value as TreatmentType)} className={ic} required {...FORM_FIELD_PROPS}>
+              <select name="treatment_type" value={editTreatmentType} onChange={(e) => setEditTreatmentType(e.target.value as TreatmentType)} className={ic} required {...FORM_FIELD_PROPS}>
                 <option value="Allopathic">Allopathic</option>
                 <option value="Homeopathic">Homeopathic</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="bloodGroup" defaultValue={patient.blood_group} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="blood_group" defaultValue={patient.blood_group} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.date_of_birth} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           {editGender === "Female" && (
@@ -316,17 +316,17 @@ export default function PatientDetailPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">Cycle (days)</label>
-                  <input name="menstrualCycleDays" type="number" defaultValue={patient.menstrual_cycle_days ?? ""} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
+                  <input name="menstrual_cycle_days" type="number" defaultValue={patient.menstrual_cycle_days ?? ""} className={ic} placeholder="28" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternateMobile" defaultValue={patient.alternate_mobile} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Alt. Mobile</label><input name="alternate_mobile" defaultValue={patient.alternate_mobile} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Email</label><input name="email" type="email" defaultValue={patient.email} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergencyContact" defaultValue={patient.emergency_contact} className={ic} {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Emergency</label><input name="emergency_contact" defaultValue={patient.emergency_contact} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Occupation</label><input name="occupation" defaultValue={patient.occupation} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Address</label><input name="addressLine1" defaultValue={patient.address?.line1} className={ic} {...FORM_FIELD_PROPS} /></div>
@@ -337,13 +337,13 @@ export default function PatientDetailPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Marital Status</label>
-              <select name="maritalStatus" defaultValue={patient.marital_status} className={ic} {...FORM_FIELD_PROPS}>
+              <select name="marital_status" defaultValue={patient.marital_status} className={ic} {...FORM_FIELD_PROPS}>
                 <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
               </select>
             </div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Allergies</label><input name="allergies" defaultValue={patient.allergies} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
-          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronicDiseases" defaultValue={patient.chronic_diseases} className={ic} {...FORM_FIELD_PROPS} /></div>
+          <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronic_diseases" defaultValue={patient.chronic_diseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           
           <div className="pt-3 border-t border-slate-100">
@@ -395,7 +395,7 @@ export default function PatientDetailPage() {
           }}
           onSaved={async (updatedVisit) => {
             // Refresh all visits from the database to ensure we have the latest data
-            const refreshedVisits = await getVisitsByPatient(patientId)
+            const refreshedVisits = await getVisitsByPatient(patient_id)
             setVisits(refreshedVisits)
             setSelectedVisit(null)
             setIsEditVisitModalOpen(false)
@@ -438,7 +438,7 @@ export default function PatientDetailPage() {
                 {patient.menstrual_cycle_days && <Badge variant="secondary">Cycle: {patient.menstrual_cycle_days}d</Badge>}
               </div>
               {/* Khata Balance Indicator */}
-              {(patient.khata_balance ?? 0) !== 0 && (
+              {!isReceptionist && (patient.khata_balance ?? 0) !== 0 && (
                 <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                   <BookOpen className="w-4 h-4" />
                   Khata: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
@@ -812,7 +812,7 @@ export default function PatientDetailPage() {
       </div>
 
       <div className="flex border-b border-slate-200 overflow-x-auto">
-        {["visits", "appointments", "payments", "khata"].map(tab => (
+        {["visits", "appointments", "payments", "khata"].filter(tab => !(isReceptionist && tab === "khata")).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
             {tab === "khata" ? "Khata Ledger" : tab} ({tab === "visits" ? visits.length : tab === "appointments" ? appointments.length : tab === "payments" ? payments.length : (visits.length + payments.length)})

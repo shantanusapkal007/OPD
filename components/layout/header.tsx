@@ -48,8 +48,8 @@ export function Header() {
       const threeDaysFromNow = new Date()
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
       const threeDaysStr = threeDaysFromNow.toISOString().split("T")[0]
-      setFollowUps(fups.filter(f => f.follow_up_date && f.follow_up_date <= threeDaysStr).slice(0, 8))
-      setTodayAppointments(allApts.filter(a => a.status === "scheduled" && a.appointment_date === today).slice(0, 8))
+      setFollowUps(fups.filter((f: Visit) => f.follow_up_date && f.follow_up_date <= threeDaysStr).slice(0, 8))
+      setTodayAppointments(allApts.filter((a: Appointment) => a.status === "scheduled" && a.appointment_date === today).slice(0, 8))
     } catch {
       // silently fail
     } finally {

@@ -40,7 +40,7 @@ export default function DashboardPage() {
 
         setStats({
           todayAppts: appointments.length,
-          pendingAppts: appointments.filter((appointment) => appointment.status === "scheduled").length,
+          pendingAppts: appointments.filter((appointment: Appointment) => appointment.status === "scheduled").length,
           totalPatients: patientCount,
           revenue,
         })

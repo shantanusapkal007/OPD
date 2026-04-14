@@ -53,9 +53,9 @@ export default function PatientsPage() {
       })
       
       // Fetch latest visits in batch instead of N+1 sequential calls
-      const patientIds = data.map(p => p.id).filter((id): id is string => !!id)
-      if (patientIds.length > 0) {
-        const visitsMap = await getLatestVisitsForPatients(patientIds)
+      const patient_ids = data.map(p => p.id).filter((id): id is string => !!id)
+      if (patient_ids.length > 0) {
+        const visitsMap = await getLatestVisitsForPatients(patient_ids)
         setPatientVisits(visitsMap)
       }
     } catch (e) {
@@ -116,18 +116,18 @@ export default function PatientsPage() {
       }
 
       const patientData: any = {
-        case_number: fd.get("caseNumber") as string,
-        treatment_type: fd.get("treatmentType") as TreatmentType,
+        case_number: fd.get("case_number") as string,
+        treatment_type: fd.get("treatment_type") as TreatmentType,
         full_name: `${fd.get("firstName")} ${fd.get("lastName")}`,
         mobile_number: fd.get("mobile") as string,
-        alternateMobile: fd.get("alternateMobile") as string || "",
+        alternate_mobile: fd.get("alternate_mobile") as string || "",
         gender: selectedGender as "Male" | "Female" | "Other",
-        dateOfBirth: fd.get("dob") as string || "",
+        date_of_birth: fd.get("dob") as string || "",
         age: parseInt(fd.get("age") as string) || 0,
-        bloodGroup: fd.get("bloodGroup") as string || "",
+        blood_group: fd.get("blood_group") as string || "",
         email: fd.get("email") as string || "",
         occupation: fd.get("occupation") as string || "",
-        maritalStatus: fd.get("maritalStatus") as string || "",
+        marital_status: fd.get("marital_status") as string || "",
         address: {
           line1: fd.get("addressLine1") as string || "",
           city: fd.get("city") as string || "",
@@ -135,16 +135,16 @@ export default function PatientsPage() {
           pincode: fd.get("pincode") as string || "",
         },
         allergies: fd.get("allergies") as string || "",
-        chronicDiseases: fd.get("chronicDiseases") as string || "",
-        emergencyContact: fd.get("emergencyContact") as string || "",
-        currentMedicines: regMedicines.filter(m => m.name.trim() !== ""),
+        chronic_diseases: fd.get("chronic_diseases") as string || "",
+        emergency_contact: fd.get("emergency_contact") as string || "",
+        current_medicines: regMedicines.filter(m => m.name.trim() !== ""),
         notes: fd.get("notes") as string || "",
       };
 
       if (photoURL) patientData.photo = photoURL;
       if (selectedGender === "Female") {
         patientData.lmp = fd.get("lmp") as string || "";
-        patientData.menstrualCycleDays = parseInt(fd.get("menstrualCycleDays") as string) || null;
+        patientData.menstrual_cycle_days = parseInt(fd.get("menstrual_cycle_days") as string) || null;
       }
 
       await addPatient(patientData)
@@ -199,7 +199,7 @@ export default function PatientsPage() {
           {/* Basic Info */}
           <h4 className={sectionTitle}>Basic Information</h4>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Case Number *</label><input required name="caseNumber" type="text" className={inputClass} placeholder="CS-1006" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Case Number *</label><input required name="case_number" type="text" className={inputClass} placeholder="CS-1006" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>Mobile Number *</label><input required name="mobile" type="tel" className={inputClass} placeholder="9876543210" {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -216,18 +216,18 @@ export default function PatientsPage() {
             </div>
             <div className="space-y-1 col-span-2">
               <label className={labelClass}>Treatment Type *</label>
-              <select name="treatmentType" value={selectedTreatmentType} onChange={(e) => setSelectedTreatmentType(e.target.value as TreatmentType)} className={inputClass} required {...FORM_FIELD_PROPS}>
+              <select name="treatment_type" value={selectedTreatmentType} onChange={(e) => setSelectedTreatmentType(e.target.value as TreatmentType)} className={inputClass} required {...FORM_FIELD_PROPS}>
                 <option value="Allopathic">Allopathic</option>
                 <option value="Homeopathic">Homeopathic</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Blood Group</label><input name="bloodGroup" type="text" className={inputClass} placeholder="B+" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Blood Group</label><input name="blood_group" type="text" className={inputClass} placeholder="B+" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>DOB</label><input name="dob" type="date" className={inputClass} {...FORM_FIELD_PROPS} /></div>
           </div>
 
-          {selectedGender === "Female" && (
+          {selectedGender?.toLowerCase() === "female" && (
             <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -236,7 +236,7 @@ export default function PatientsPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-pink-800">Cycle Length (days)</label>
-                  <input name="menstrualCycleDays" type="number" className={inputClass} placeholder="28" {...FORM_FIELD_PROPS} />
+                  <input name="menstrual_cycle_days" type="number" className={inputClass} placeholder="28" {...FORM_FIELD_PROPS} />
                 </div>
               </div>
             </div>
@@ -245,11 +245,11 @@ export default function PatientsPage() {
           {/* Contact */}
           <h4 className={sectionTitle}>Contact Details</h4>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Alternate Mobile</label><input name="alternateMobile" type="tel" className={inputClass} placeholder="Alternate number" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Alternate Mobile</label><input name="alternate_mobile" type="tel" className={inputClass} placeholder="Alternate number" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>Email</label><input name="email" type="email" className={inputClass} placeholder="patient@email.com" {...FORM_FIELD_PROPS} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1"><label className={labelClass}>Emergency Contact</label><input name="emergencyContact" type="tel" className={inputClass} placeholder="Emergency number" {...FORM_FIELD_PROPS} /></div>
+            <div className="space-y-1"><label className={labelClass}>Emergency Contact</label><input name="emergency_contact" type="tel" className={inputClass} placeholder="Emergency number" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>Occupation</label><input name="occupation" type="text" className={inputClass} placeholder="e.g. Teacher" {...FORM_FIELD_PROPS} /></div>
           </div>
 
@@ -267,13 +267,13 @@ export default function PatientsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className={labelClass}>Marital Status</label>
-              <select name="maritalStatus" className={inputClass} {...FORM_FIELD_PROPS}>
+              <select name="marital_status" className={inputClass} {...FORM_FIELD_PROPS}>
                 <option value="">Select</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option><option value="Widowed">Widowed</option>
               </select>
             </div>
             <div className="space-y-1"><label className={labelClass}>Allergies</label><input name="allergies" type="text" className={inputClass} placeholder="e.g. Penicillin" {...FORM_FIELD_PROPS} /></div>
           </div>
-          <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronicDiseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" {...FORM_FIELD_PROPS} /></div>
+          <div className="space-y-1"><label className={labelClass}>Chronic Diseases</label><input name="chronic_diseases" type="text" className={inputClass} placeholder="e.g. Diabetes, Hypertension" {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className={labelClass}>Notes</label><textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional notes..." {...FORM_FIELD_PROPS} /></div>
 
           {/* Current Medicines */}
@@ -319,15 +319,15 @@ export default function PatientsPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {patients.map((patient) => {
-              const treatmentType = getTreatmentType(patient.case_number, patient.treatment_type)
+              const treatment_type = getTreatmentType(patient.case_number, patient.treatment_type)
               const latestVisit = patient.id ? patientVisits[patient.id] : null
 
               return (
                 <tr key={patient.id} onClick={() => router.push(`/patients/${patient.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
                   <td className="px-4 py-3 text-blue-600">
                     <span className="font-bold">{patient.case_number}</span>
-                    <Badge variant="outline" className={`ml-2 text-[10px] px-1.5 py-0 font-bold ${treatmentType === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
-                      {treatmentType.substring(0, 5)}
+                    <Badge variant="outline" className={`ml-2 text-[10px] px-1.5 py-0 font-bold ${treatment_type === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+                      {treatment_type.substring(0, 5)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
@@ -397,7 +397,7 @@ export default function PatientsPage() {
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-3">
         {patients.map((patient) => {
-          const treatmentType = getTreatmentType(patient.case_number, patient.treatment_type)
+          const treatment_type = getTreatmentType(patient.case_number, patient.treatment_type)
           const latestVisit = patient.id ? patientVisits[patient.id] : null
 
           return (
@@ -421,8 +421,8 @@ export default function PatientsPage() {
               <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
                 <span>{patient.age} yrs | {patient.gender}{patient.blood_group ? ` | ${patient.blood_group}` : ""}</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-bold ${treatmentType === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
-                    {treatmentType}
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-bold ${treatment_type === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+                    {treatment_type}
                   </Badge>
                   <span className="text-blue-600 font-bold">{patient.case_number}</span>
                 </div>
@@ -470,7 +470,7 @@ export default function PatientsPage() {
 
               {/* Quick Links */}
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <QuickLinks patientId={patient.id} compact={true} />
+                <QuickLinks patientId={patient.id!} compact />
               </div>
             </Link>
           )

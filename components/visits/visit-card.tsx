@@ -22,15 +22,24 @@ export function VisitCard({ visit, onEdit }: VisitCardProps) {
             {visit.created_at ? new Date(visit.created_at).toLocaleDateString() : "-"}
           </p>
         </div>
-        {onEdit && (
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => onEdit(visit)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Edit visit"
+            onClick={() => window.open(`/visits/${visit.id}/print`, '_blank')}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
+            title="Print Prescription"
           >
-            <Edit className="w-4 h-4 text-slate-600" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
           </button>
-        )}
+          {onEdit && (
+            <button
+              onClick={() => onEdit(visit)}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
+              title="Edit visit"
+            >
+              <Edit className="w-4 h-4 text-slate-600" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">

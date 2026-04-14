@@ -91,6 +91,9 @@ export interface Vitals {
   respiratoryRate?: number;
 }
 
+export type Department = "Skin" | "Pediatrician" | "General" | "OBGY";
+export type VisitSetting = "OPD" | "Daycare";
+
 export interface Visit {
   id?: string;
   patient_id: string;
@@ -113,6 +116,8 @@ export interface Visit {
   referral?: string;
   follow_up_date?: string;
   follow_up_message_enabled?: boolean;
+  department?: Department;
+  setting?: VisitSetting;
   is_edited?: boolean;
   edited_at?: string;
   edited_by?: string;

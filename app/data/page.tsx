@@ -240,11 +240,11 @@ export default function DataPage() {
       const parsed = Number.parseInt(value, 10)
       return Number.isFinite(parsed) ? parsed : fallback
     }
-    const normalizeTreatmentType = (value: string, caseNumber: string) => {
+    const normalizeTreatmentType = (value: string, case_number: string) => {
       const normalized = value.trim().toLowerCase()
       if (normalized === "allopathic") return "Allopathic"
       if (normalized === "homeopathic") return "Homeopathic"
-      return getTreatmentType(caseNumber)
+      return getTreatmentType(case_number)
     }
 
     for (const row of rows) {
@@ -253,11 +253,11 @@ export default function DataPage() {
           const index = idx(name)
           return index >= 0 ? row[index] || "" : ""
         }
-        const caseNumber = get("case")
+        const case_number = get("case")
         const importedTreatmentType = get("treatment")
         const patientData: any = {
-          case_number: caseNumber,
-          treatment_type: normalizeTreatmentType(importedTreatmentType, caseNumber),
+          case_number: case_number,
+          treatment_type: normalizeTreatmentType(importedTreatmentType, case_number),
           full_name: get("name") || get("full name"),
           mobile_number: get("mobile") || get("phone"),
           gender: (get("gender") || "Male") as "Male" | "Female" | "Other",
