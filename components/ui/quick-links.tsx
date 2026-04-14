@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation"
 import { Pill, Calendar, IndianRupee, BookOpen, ArrowRight } from "lucide-react"
+import { canViewFinancial } from "@/lib/access"
+import { useAuth } from "@/components/providers/AuthProvider"
 
 interface QuickLinksProps {
   patientId?: string
@@ -10,6 +12,7 @@ interface QuickLinksProps {
 
 export function QuickLinks({ patientId, compact = false }: QuickLinksProps) {
   const router = useRouter()
+  const { user } = useAuth()
 
   if (!patientId) return null
 
@@ -38,7 +41,12 @@ export function QuickLinks({ patientId, compact = false }: QuickLinksProps) {
       onClick: () => router.push(`/patients/${patientId}?tab=khata`),
       color: "text-orange-600"
     },
-  ]
+  ].filter((link) => {
+    if (!canViewFinancial(user?.role) && (link.label === "Payments" || link.label === "Khata")) {
+      return false
+    }
+    return true
+  })
 
   if (compact) {
     return (

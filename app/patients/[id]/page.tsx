@@ -10,11 +10,12 @@ import { EditVisitModal } from "@/components/visits/edit-visit-modal"
 import { VisitCard } from "@/components/visits/visit-card"
 import { VisitImageGallery } from "@/components/visits/visit-image-gallery"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
-import { formatCurrency, getTreatmentType } from "@/lib/utils"
+import { cn, formatCurrency, getTreatmentType } from "@/lib/utils"
+import { canViewClinical, canViewFinancial } from "@/lib/access"
 import { useAuth } from "@/components/providers/AuthProvider"
 import Image from "next/image"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { getPatient, updatePatient, deletePatient, getPatientLinkedRecordCounts } from "@/services/patient.service"
 import { getVisitsByPatient } from "@/services/visit.service"
 import { getPaymentsByPatient } from "@/services/payment.service"
@@ -27,8 +28,11 @@ import { useToast } from "@/components/ui/toast"
 export default function PatientDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { user, isReceptionist } = useAuth()
+  const searchParams = useSearchParams()
+  const { user } = useAuth()
   const patient_id = params?.id as string
+  const showClinical = canViewClinical(user?.role)
+  const showFinancial = canViewFinancial(user?.role)
 
   const [patient, setPatient] = useState<Patient | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
@@ -139,6 +143,20 @@ export default function PatientDetailPage() {
     load()
   }, [patient_id])
 
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab")
+    const availableTabs = ["visits", "appointments", ...(showFinancial ? ["payments", "khata"] : [])]
+
+    if (requestedTab && availableTabs.includes(requestedTab)) {
+      setActiveTab(requestedTab)
+      return
+    }
+
+    if (!availableTabs.includes(activeTab)) {
+      setActiveTab("visits")
+    }
+  }, [activeTab, searchParams, showFinancial])
+
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!patient?.id) return
@@ -156,6 +174,8 @@ export default function PatientDetailPage() {
         gender: editGender as "Male" | "Female" | "Other",
         date_of_birth: fd.get("dob") as string || "",
         blood_group: fd.get("blood_group") as string || "",
+        department: fd.get("department") as Patient["department"] || undefined,
+        setting: fd.get("setting") as Patient["setting"] || undefined,
         email: fd.get("email") as string || "",
         occupation: fd.get("occupation") as string || "",
         marital_status: fd.get("marital_status") as string || "",
@@ -304,6 +324,18 @@ export default function PatientDetailPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Department</label>
+              <select name="department" defaultValue={patient.department || ""} className={ic} {...FORM_FIELD_PROPS}>
+                <option value="">Select</option><option value="Skin">Skin</option><option value="Pediatrician">Pediatrician</option><option value="General">General</option><option value="OBGY">OBGY</option>
+              </select>
+            </div>
+            <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Setting</label>
+              <select name="setting" defaultValue={patient.setting || ""} className={ic} {...FORM_FIELD_PROPS}>
+                <option value="">Select</option><option value="OPD">OPD</option><option value="Daycare">Daycare</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Blood</label><input name="blood_group" defaultValue={patient.blood_group} className={ic} {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className="text-sm font-medium text-slate-700">DOB</label><input name="dob" type="date" defaultValue={patient.date_of_birth} className={ic} {...FORM_FIELD_PROPS} /></div>
           </div>
@@ -346,10 +378,12 @@ export default function PatientDetailPage() {
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Chronic Diseases</label><input name="chronic_diseases" defaultValue={patient.chronic_diseases} className={ic} {...FORM_FIELD_PROPS} /></div>
           <div className="space-y-1"><label className="text-sm font-medium text-slate-700">Notes</label><textarea name="notes" defaultValue={patient.notes} className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} {...FORM_FIELD_PROPS} /></div>
           
-          <div className="pt-3 border-t border-slate-100">
-            <label className="text-sm font-medium text-slate-700 block mb-3">Overall Medicines</label>
-            <PatientMedicines medicines={editMedicines} onMedicinesChange={setEditMedicines} />
-          </div>
+          {showClinical && (
+            <div className="pt-3 border-t border-slate-100">
+              <label className="text-sm font-medium text-slate-700 block mb-3">Overall Medicines</label>
+              <PatientMedicines medicines={editMedicines} onMedicinesChange={setEditMedicines} />
+            </div>
+          )}
 
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
             <Button type="button" variant="outline" onClick={() => { setIsEditModalOpen(false); resetEditFormState() }} disabled={isSaving}>Cancel</Button>
@@ -404,64 +438,70 @@ export default function PatientDetailPage() {
         />
       )}
 
-      {/* Patient Profile Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-          <div className="flex items-center gap-6">
+      {/* Patient Profile Card — Premium Codex Style */}
+      <div className="relative overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-6 shadow-[0_24px_80px_-36px_rgba(14,116,144,0.35)] sm:p-8">
+        <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.2),_transparent_45%),radial-gradient(circle_at_left,_rgba(16,185,129,0.16),_transparent_30%)]" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-5">
             {patient.photo ? (
-              <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-slate-200">
-                <Image src={patient.photo} alt={patient.full_name} fill unoptimized sizes="64px" className="object-cover" />
+              <div className="relative h-20 w-20 overflow-hidden rounded-[24px] border-4 border-white shadow-lg shadow-sky-100">
+                <Image src={patient.photo} alt={patient.full_name} fill unoptimized sizes="80px" className="object-cover" />
               </div>
             ) : (
-              <Avatar fallback={patient.full_name?.substring(0, 2).toUpperCase()} size="xl" />
+              <div className="rounded-[24px] bg-white p-1 shadow-lg shadow-sky-100">
+                <Avatar fallback={patient.full_name?.substring(0, 2).toUpperCase()} size="xl" />
+              </div>
             )}
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-slate-900">{patient.full_name}</h1>
-                <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">Case: {patient.case_number}</Badge>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="border-sky-200 bg-white/80 text-sky-700">Case: {patient.case_number}</Badge>
                 <Badge variant="outline" className={`font-bold ${patientTreatmentType === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
                   {patientTreatmentType}
                 </Badge>
+                <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.gender}</Badge>
+                <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.age} yrs</Badge>
+                {patient.blood_group && <Badge variant="secondary" className="bg-rose-50 text-rose-700">{patient.blood_group}</Badge>}
+                {patient.department && <Badge variant="secondary" className="bg-violet-50 text-violet-700">{patient.department}</Badge>}
+                {patient.setting && <Badge variant="secondary" className="bg-cyan-50 text-cyan-700">{patient.setting}</Badge>}
               </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-slate-600">
-                <span className="flex items-center gap-1"><Phone className="w-4 h-4" /> {patient.mobile_number}</span>
-                {patient.alternate_mobile && <span className="flex items-center gap-1"><Phone className="w-4 h-4 text-slate-400" /> {patient.alternate_mobile}</span>}
-                {patient.email && <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> {patient.email}</span>}
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{patient.full_name}</h1>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                  Patient profile, recent care context, and ledger activity in one place.
+                </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-3">
-                <Badge variant="secondary">{patient.gender}</Badge>
-                <Badge variant="secondary">{patient.age} yrs</Badge>
-                {patient.blood_group && <Badge variant="secondary">{patient.blood_group}</Badge>}
-                {patient.marital_status && <Badge variant="secondary">{patient.marital_status}</Badge>}
-                {patient.occupation && <Badge variant="secondary">{patient.occupation}</Badge>}
-                {patient.lmp && <Badge variant="secondary">LMP: {patient.lmp}</Badge>}
-                {patient.menstrual_cycle_days && <Badge variant="secondary">Cycle: {patient.menstrual_cycle_days}d</Badge>}
+              <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+                  <Phone className="h-4 w-4 text-sky-600" /> {patient.mobile_number}
+                </span>
+                {patient.alternate_mobile && <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm"><Phone className="h-4 w-4 text-violet-600" /> {patient.alternate_mobile}</span>}
+                {patient.email && <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 shadow-sm"><Mail className="h-4 w-4 text-emerald-600" /> {patient.email}</span>}
               </div>
-              {/* Khata Balance Indicator */}
-              {!isReceptionist && (patient.khata_balance ?? 0) !== 0 && (
-                <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
-                  <BookOpen className="w-4 h-4" />
-                  Khata: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {patient.marital_status && <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.marital_status}</Badge>}
+                {patient.occupation && <Badge variant="secondary" className="bg-white/80 text-slate-700">{patient.occupation}</Badge>}
+                {patient.lmp && <Badge variant="secondary" className="bg-pink-50 text-pink-700">LMP: {patient.lmp}</Badge>}
+                {patient.menstrual_cycle_days && <Badge variant="secondary" className="bg-pink-50 text-pink-700">Cycle: {patient.menstrual_cycle_days}d</Badge>}
+                {showFinancial && <Badge variant="secondary" className={(patient.khata_balance || 0) < 0 ? "bg-rose-50 text-rose-700" : (patient.khata_balance || 0) > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-700"}>
+                  Khata: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : (patient.khata_balance || 0) > 0 ? `Advance ${formatCurrency(patient.khata_balance || 0)}` : "Clear"}
+                </Badge>}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            <Button variant="outline" size="sm" className="flex-1 md:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
-              <Edit className="w-4 h-4 mr-2" /> Edit
+          <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:justify-end">
+            <Button size="sm" className="flex-1 bg-slate-900 text-white shadow-lg shadow-slate-200 hover:bg-slate-800 lg:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
+              <Edit className="w-4 h-4 mr-2" /> Edit Profile
             </Button>
-            <Button variant="outline" size="sm" className="flex-1 md:flex-none text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={async () => {
+            <Button variant="outline" size="sm" className="flex-1 border-rose-200 bg-white/80 text-rose-600 hover:bg-rose-50 hover:text-rose-700 lg:flex-none" onClick={async () => {
               const linked = await getPatientLinkedRecordCounts(patient.id!)
               const linkedSummary = [
                 linked.appointments ? `${linked.appointments} appointment${linked.appointments > 1 ? "s" : ""}` : "",
                 linked.visits ? `${linked.visits} visit${linked.visits > 1 ? "s" : ""}` : "",
                 linked.payments ? `${linked.payments} payment${linked.payments > 1 ? "s" : ""}` : "",
               ].filter(Boolean).join(", ")
-
               const confirmMessage = linkedSummary
                 ? `Are you sure you want to delete this patient? This will also delete ${linkedSummary}.`
                 : "Are you sure you want to delete this patient?"
-
               if (window.confirm(confirmMessage)) {
                 await deletePatient(patient.id!)
                 router.push("/patients")
@@ -472,235 +512,237 @@ export default function PatientDetailPage() {
           </div>
         </div>
 
-        {/* Extended Details Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
+        {/* Extended Details Grid — Premium Style */}
+        <div className="relative mt-6 grid grid-cols-1 gap-4 border-t border-white/60 pt-6 text-sm md:grid-cols-2 xl:grid-cols-4">
           {patient.address?.line1 && (
-            <div><span className="text-xs font-semibold text-slate-400 uppercase">Address</span><p className="text-slate-700 mt-0.5">{patient.address.line1}{patient.address.city ? `, ${patient.address.city}` : ""}{patient.address.state ? `, ${patient.address.state}` : ""}{patient.address.pincode ? ` - ${patient.address.pincode}` : ""}</p></div>
+            <div className="rounded-[24px] border border-sky-100 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600">Address</span><p className="mt-2 text-sm leading-6 text-slate-700">{patient.address.line1}{patient.address.city ? `, ${patient.address.city}` : ""}{patient.address.state ? `, ${patient.address.state}` : ""}{patient.address.pincode ? ` - ${patient.address.pincode}` : ""}</p></div>
           )}
           {patient.emergency_contact && (
-            <div><span className="text-xs font-semibold text-slate-400 uppercase">Emergency Contact</span><p className="text-slate-700 mt-0.5">{patient.emergency_contact}</p></div>
+            <div className="rounded-[24px] border border-violet-100 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-violet-600">Emergency Contact</span><p className="mt-2 text-sm font-medium text-slate-800">{patient.emergency_contact}</p></div>
           )}
           {patient.allergies && (
-            <div><span className="text-xs font-semibold text-red-400 uppercase">Allergies</span><p className="text-red-600 font-medium mt-0.5">{patient.allergies}</p></div>
+            <div className="rounded-[24px] border border-rose-100 bg-rose-50/80 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-rose-500">Allergies</span><p className="mt-2 text-sm font-medium text-rose-700">{patient.allergies}</p></div>
           )}
           {patient.chronic_diseases && (
-            <div><span className="text-xs font-semibold text-orange-400 uppercase">Chronic Diseases</span><p className="text-orange-700 font-medium mt-0.5">{patient.chronic_diseases}</p></div>
+            <div className="rounded-[24px] border border-amber-100 bg-amber-50/80 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-600">Chronic Diseases</span><p className="mt-2 text-sm font-medium text-amber-800">{patient.chronic_diseases}</p></div>
           )}
           {patient.date_of_birth && (
-            <div><span className="text-xs font-semibold text-slate-400 uppercase">Date of Birth</span><p className="text-slate-700 mt-0.5">{patient.date_of_birth}</p></div>
+            <div className="rounded-[24px] border border-slate-200 bg-white/85 p-4 shadow-sm"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Date of Birth</span><p className="mt-2 text-sm font-medium text-slate-800">{patient.date_of_birth}</p></div>
           )}
           {patient.notes && (
-            <div className="col-span-2"><span className="text-xs font-semibold text-slate-400 uppercase">Notes</span><p className="text-slate-700 mt-0.5">{patient.notes}</p></div>
+            <div className="rounded-[24px] border border-emerald-100 bg-white/85 p-4 shadow-sm md:col-span-2 xl:col-span-2"><span className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">Notes</span><p className="mt-2 text-sm leading-6 text-slate-700">{patient.notes}</p></div>
           )}
         </div>
 
-        {/* Overall Medicines Section — always visible */}
-        {hasPatientCareSummary && (
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <div className="flex items-center justify-between gap-3 mb-4">
+        {/* Patient Care Summary — visible only for clinical users */}
+        {showClinical && hasPatientCareSummary && (
+          <div className="mt-6 rounded-[28px] border border-slate-200/80 bg-white/80 p-5 shadow-inner shadow-slate-100 backdrop-blur">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-600" /> Patient Care Summary
+                <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
+                  <Activity className="h-4 w-4 text-sky-600" /> Patient Care Summary
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Saved clinical details and current medicines are grouped together here for quick review.
                 </p>
               </div>
-              <span className="text-xs text-slate-500">Auto-refreshed after save</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Auto-refreshed after save</span>
             </div>
 
-            <div className="space-y-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="space-y-6">
               {hasClinicalDetails && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
+                    <Activity className="h-4 w-4 text-sky-600" /> Clinical Details
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     {clinicalSummaryItems.map((item) => (
-                      <div key={item.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
+                      <div key={item.label} className="rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 px-4 py-3 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
                         <p className="mt-1 text-sm font-medium text-slate-900">{item.value}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Present Complaints</p>
+                  <div className="mt-4 rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white px-4 py-3 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">Present Complaints</p>
                     <p className="mt-1 text-sm text-slate-900">{patient.present_complaints || "-"}</p>
                   </div>
                 </div>
               )}
 
               {hasSavedMedicines && (
-                <div className={hasClinicalDetails ? "border-t border-slate-200 pt-6" : ""}>
-                  <h4 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
+                <div className={cn(hasClinicalDetails && "border-t border-slate-200 pt-6")}>
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
+                    <Pill className="h-4 w-4 text-emerald-600" /> Current Medicines
                   </h4>
-                  <PatientMedicines medicines={normalizedSavedMedicines} readOnly onMedicinesChange={function (medicines: Medicine[]): void {
-                    throw new Error("Function not implemented.")
-                  } } />
+                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-4 shadow-sm">
+                    <PatientMedicines medicines={normalizedSavedMedicines} readOnly onMedicinesChange={() => {}} />
+                  </div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/appointments')}>
-            <Calendar className="w-4 h-4 mr-2 text-blue-600" /> Book Appt
+        <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/60 pt-6 sm:grid-cols-3">
+          <Button variant="outline" className="w-full justify-start rounded-2xl border-sky-200 bg-white/80 text-slate-700 hover:bg-sky-50" onClick={() => router.push('/appointments')}>
+            <Calendar className="w-4 h-4 mr-2 text-sky-600" /> Book Appointment
           </Button>
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => router.push('/visits')}>
-            <Pill className="w-4 h-4 mr-2 text-green-600" /> New Visit
+          <Button variant="outline" className="w-full justify-start rounded-2xl border-emerald-200 bg-white/80 text-slate-700 hover:bg-emerald-50" onClick={() => router.push('/visits')}>
+            <Pill className="w-4 h-4 mr-2 text-emerald-600" /> Record Visit
           </Button>
-          <Button variant="outline" className="w-full justify-start text-slate-700" onClick={() => setIsWhatsAppModalOpen(true)}>
-            <MessageSquare className="w-4 h-4 mr-2 text-green-500" /> WhatsApp
+          <Button variant="outline" className="w-full justify-start rounded-2xl border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50" onClick={() => setIsWhatsAppModalOpen(true)}>
+            <MessageSquare className="w-4 h-4 mr-2 text-violet-600" /> WhatsApp
           </Button>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-600" /> Update Patient Care
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Enter clinical details and current medicines together, then save each part when you are ready.
-            </p>
-          </div>
+        {showClinical && (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-600" /> Update Patient Care
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Enter clinical details and current medicines together, then save each part when you are ready.
+              </p>
+            </div>
 
-          <div className="space-y-6">
-            <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">Track complaints, vitals, and repetition in one place.</p>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Present Complaints</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Fever, Headache since 2 days"
-                  value={clinicalDetailsFormData.present_complaints}
-                  onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, present_complaints: e.target.value })}
-                  className={ic}
-                  {...FORM_FIELD_PROPS}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Weight (kg)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 70"
-                    step="0.1"
-                    value={clinicalDetailsFormData.weight}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, weight: e.target.value })}
-                    className={ic}
-                    {...FORM_FIELD_PROPS}
-                  />
+            <div className="space-y-6">
+              <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">Track complaints, vitals, and repetition in one place.</p>
                 </div>
+
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Height (cm)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 170"
-                    step="0.1"
-                    value={clinicalDetailsFormData.height_cm}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, height_cm: e.target.value })}
-                    className={ic}
-                    {...FORM_FIELD_PROPS}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Blood Pressure</label>
+                  <label className="text-sm font-medium text-slate-700">Present Complaints</label>
                   <input
                     type="text"
-                    placeholder="120/80"
-                    value={clinicalDetailsFormData.bp}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, bp: e.target.value })}
+                    placeholder="e.g. Fever, Headache since 2 days"
+                    value={clinicalDetailsFormData.present_complaints}
+                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, present_complaints: e.target.value })}
                     className={ic}
                     {...FORM_FIELD_PROPS}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Temperature (deg F)</label>
-                  <input
-                    type="number"
-                    placeholder="98.6"
-                    step="0.1"
-                    value={clinicalDetailsFormData.temperature}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, temperature: e.target.value })}
-                    className={ic}
-                    {...FORM_FIELD_PROPS}
-                  />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Weight (kg)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 70"
+                      step="0.1"
+                      value={clinicalDetailsFormData.weight}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, weight: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Height (cm)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 170"
+                      step="0.1"
+                      value={clinicalDetailsFormData.height_cm}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, height_cm: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Blood Pressure</label>
+                    <input
+                      type="text"
+                      placeholder="120/80"
+                      value={clinicalDetailsFormData.bp}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, bp: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Temperature (deg F)</label>
+                    <input
+                      type="number"
+                      placeholder="98.6"
+                      step="0.1"
+                      value={clinicalDetailsFormData.temperature}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, temperature: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">SpO2 (%)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 98"
+                      value={clinicalDetailsFormData.spo2}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, spo2: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Repetition</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. BD, TDS"
+                      value={clinicalDetailsFormData.repetition}
+                      onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, repetition: e.target.value })}
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">SpO2 (%)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 98"
-                    value={clinicalDetailsFormData.spo2}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, spo2: e.target.value })}
-                    className={ic}
-                    {...FORM_FIELD_PROPS}
-                  />
+
+                <div className="pt-2 flex justify-end">
+                  <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
+                    {isSavingClinical ? "Saving..." : "Save Clinical Details"}
+                  </Button>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Repetition</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. BD, TDS"
-                    value={clinicalDetailsFormData.repetition}
-                    onChange={(e) => setClinicalDetailsFormData({ ...clinicalDetailsFormData, repetition: e.target.value })}
-                    className={ic}
-                    {...FORM_FIELD_PROPS}
-                  />
+              </form>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Update medicines here and save once. Typing will not trigger notifications.
+                  </p>
                 </div>
-              </div>
 
-              <div className="pt-2 flex justify-end">
-                <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
-                  {isSavingClinical ? "Saving..." : "Save Clinical Details"}
-                </Button>
-              </div>
-            </form>
+                <PatientMedicines medicines={medicineDraft} onMedicinesChange={setMedicineDraft} />
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                  <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Update medicines here and save once. Typing will not trigger notifications.
-                </p>
-              </div>
-
-              <PatientMedicines medicines={medicineDraft} onMedicinesChange={setMedicineDraft} />
-
-              <div className="pt-4 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSavingMedicines || !hasMedicineChanges}
-                  onClick={() => setMedicineDraft(buildMedicineDraft())}
-                >
-                  Reset
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isSavingMedicines || !hasMedicineChanges}
-                  onClick={handleSaveMedicines}
-                >
-                  {isSavingMedicines ? "Saving..." : "Save Medicines"}
-                </Button>
+                <div className="pt-4 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSavingMedicines || !hasMedicineChanges}
+                    onClick={() => setMedicineDraft(buildMedicineDraft())}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={isSavingMedicines || !hasMedicineChanges}
+                    onClick={handleSaveMedicines}
+                  >
+                    {isSavingMedicines ? "Saving..." : "Save Medicines"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Clinical Details Form */}
-        <div className="hidden">
+        {showClinical && <div className="hidden">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
@@ -808,11 +850,14 @@ export default function PatientDetailPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </div>}
       </div>
 
       <div className="flex border-b border-slate-200 overflow-x-auto">
-        {["visits", "appointments", "payments", "khata"].filter(tab => !(isReceptionist && tab === "khata")).map(tab => (
+        {["visits", "appointments", "payments", "khata"].filter(tab => {
+          if (!showFinancial && (tab === "khata" || tab === "payments")) return false;
+          return true;
+        }).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
             {tab === "khata" ? "Khata Ledger" : tab} ({tab === "visits" ? visits.length : tab === "appointments" ? appointments.length : tab === "payments" ? payments.length : (visits.length + payments.length)})
@@ -827,10 +872,11 @@ export default function PatientDetailPage() {
             <VisitCard
               key={visit.id}
               visit={visit}
-              onEdit={(v) => {
+              showClinicalDetails={showClinical}
+              onEdit={showClinical ? (v) => {
                 setSelectedVisit(v)
                 setIsEditVisitModalOpen(true)
-              }}
+              } : undefined}
             />
           ))}
         </div>

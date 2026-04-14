@@ -49,6 +49,8 @@ export interface Patient {
   temperature?: number | null;
   spo2?: number | null;
   repetition?: string;
+  department?: Department;
+  setting?: VisitSetting;
   khata_balance?: number;
   created_at: string;
   updated_at: string;

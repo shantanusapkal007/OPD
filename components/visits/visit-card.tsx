@@ -8,29 +8,32 @@ import { formatCurrency } from "@/lib/utils"
 interface VisitCardProps {
   visit: Visit
   onEdit?: (visit: Visit) => void
+  showClinicalDetails?: boolean
 }
 
-export function VisitCard({ visit, onEdit }: VisitCardProps) {
+export function VisitCard({ visit, onEdit, showClinicalDetails = true }: VisitCardProps) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">
-            {visit.diagnosis || "Consultation"}
+            {showClinicalDetails ? (visit.diagnosis || "Consultation") : "Visit Record"}
           </h3>
           <p className="text-sm text-slate-500 mt-1">
             {visit.created_at ? new Date(visit.created_at).toLocaleDateString() : "-"}
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => window.open(`/visits/${visit.id}/print`, '_blank')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
-            title="Print Prescription"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-          </button>
-          {onEdit && (
+          {showClinicalDetails && (
+            <button
+              onClick={() => window.open(`/visits/${visit.id}/print`, '_blank')}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
+              title="Print Prescription"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            </button>
+          )}
+          {showClinicalDetails && onEdit && (
             <button
               onClick={() => onEdit(visit)}
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
@@ -43,21 +46,21 @@ export function VisitCard({ visit, onEdit }: VisitCardProps) {
       </div>
 
       <div className="space-y-3">
-        {visit.complaints && (
+        {showClinicalDetails && visit.complaints && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Complaints</p>
             <p className="text-sm text-slate-700 mt-1">{visit.complaints}</p>
           </div>
         )}
 
-        {visit.examination_findings && (
+        {showClinicalDetails && visit.examination_findings && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Examination</p>
             <p className="text-sm text-slate-700 mt-1">{visit.examination_findings}</p>
           </div>
         )}
 
-        {visit.vitals && Object.values(visit.vitals).some(v => v) && (
+        {showClinicalDetails && visit.vitals && Object.values(visit.vitals).some(v => v) && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Vitals</p>
             <div className="flex flex-wrap gap-2 mt-2">
@@ -70,7 +73,7 @@ export function VisitCard({ visit, onEdit }: VisitCardProps) {
           </div>
         )}
 
-        {visit.prescriptions && visit.prescriptions.length > 0 && (
+        {showClinicalDetails && visit.prescriptions && visit.prescriptions.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Medicines</p>
             <div className="space-y-2 mt-2">
@@ -85,14 +88,14 @@ export function VisitCard({ visit, onEdit }: VisitCardProps) {
           </div>
         )}
 
-        {visit.lab_tests && (
+        {showClinicalDetails && visit.lab_tests && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Lab Tests</p>
             <p className="text-sm text-slate-700 mt-1">{visit.lab_tests}</p>
           </div>
         )}
 
-        {visit.advice && (
+        {showClinicalDetails && visit.advice && (
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase">Advice</p>
             <p className="text-sm text-slate-700 mt-1">{visit.advice}</p>

@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { Plus, Pill, Calendar, IndianRupee, X } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { canAccessPath } from "@/lib/access"
 
 interface FABAction {
   icon: React.ReactNode
@@ -17,6 +19,7 @@ export function FloatingActionButton() {
   const router = useRouter()
   const pathname = usePathname()
   const menuRef = useRef<HTMLDivElement>(null)
+  const { user } = useAuth()
 
   // Hide FAB on login and settings pages
   const hideFAB = pathname === "/login" || pathname.includes("/patients/");
@@ -40,7 +43,7 @@ export function FloatingActionButton() {
       href: "/payments",
       color: "bg-purple-600 hover:bg-purple-700"
     },
-  ]
+  ].filter((action) => canAccessPath(user?.role, action.href))
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -75,9 +78,9 @@ export function FloatingActionButton() {
               <span className="text-sm font-medium text-slate-700 bg-white px-3 py-2 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                 {action.label}
               </span>
-              <button className={`${action.color} text-white p-3 rounded-full shadow-lg transition-all transform scale-0 group-hover:scale-100`}>
+              <span className={`${action.color} text-white p-3 rounded-full shadow-lg transition-all transform scale-0 group-hover:scale-100`}>
                 {action.icon}
-              </button>
+              </span>
             </button>
           ))}
         </div>

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { getVisit } from "@/services/visit.service"
 import { getPatient } from "@/services/patient.service"
-import { Visit, Patient } from "@/lib/types"
+import { getClinicSettings } from "@/services/clinic-settings.service"
+import { Visit, Patient, ClinicSettings } from "@/lib/types"
 import { Printer, ArrowLeft } from "lucide-react"
 
 export default function PrintPrescriptionPage() {
@@ -14,13 +15,19 @@ export default function PrintPrescriptionPage() {
 
   const [visit, setVisit] = useState<Visit | null>(null)
   const [patient, setPatient] = useState<Patient | null>(null)
+  const [settings, setSettings] = useState<ClinicSettings | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       if (!visitId) return
       try {
-        const v = await getVisit(visitId)
+        const [v, clinicSettings] = await Promise.all([
+          getVisit(visitId),
+          getClinicSettings(),
+        ])
+        setSettings(clinicSettings)
+
         if (v && v.patient_id) {
           setVisit(v)
           const p = await getPatient(v.patient_id)
@@ -42,6 +49,9 @@ export default function PrintPrescriptionPage() {
   const patientAge = patient.age ? `${patient.age} Yrs` : "-"
   const patientGender = patient.gender || "-"
   const visitDate = visit.created_at ? new Date(visit.created_at).toLocaleDateString() : "-"
+  const clinicName = settings?.clinic_name?.trim() || "Clinic header placeholder"
+  const headerLine = [settings?.doctor_name, settings?.specialization].filter(Boolean).join(" | ") || "Doctor name and specialization placeholder"
+  const contactLine = [settings?.address, settings?.phone, settings?.email].filter(Boolean).join(" | ") || "Clinic address, phone, and email placeholder"
 
   return (
     <div className="bg-white text-black min-h-screen">
@@ -61,10 +71,22 @@ export default function PrintPrescriptionPage() {
       <div className="max-w-3xl mx-auto p-8 border border-slate-200 shadow-sm print:shadow-none print:border-none print:p-0">
         
         {/* Clinic Header */}
-        <header className="border-b-2 border-slate-800 pb-4 mb-6 text-center">
-          <h1 className="text-3xl font-bold uppercase tracking-wider text-slate-900">OPD Clinic</h1>
-          <p className="text-sm text-slate-600 mt-1">123 Health Street, Medical District, City, 40001</p>
-          <p className="text-sm text-slate-600">+91 98765 43210 | care@opdclinic.com</p>
+        <header className="border-b-2 border-slate-800 pb-4 mb-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 overflow-hidden">
+              <img
+                src={settings?.logo_url || ""}
+                alt="Clinic logo placeholder"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="flex-1 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Clinic Header</p>
+              <h1 className="mt-2 text-3xl font-bold uppercase tracking-wider text-slate-900">{clinicName}</h1>
+              <p className="text-sm text-slate-600 mt-1">{headerLine}</p>
+              <p className="text-sm text-slate-600">{contactLine}</p>
+            </div>
+          </div>
         </header>
 
         {/* Patient Info Block */}

@@ -19,7 +19,7 @@ export function BottomNav() {
   const pathname = usePathname()
   const { user } = useAuth()
   const visibleNavItems = navItems.filter((item) => canAccessPath(user?.role, item.href))
-  const moreHref = canAccessPath(user?.role, "/settings") ? "/settings" : "/khata"
+  const moreHref = ["/settings", "/khata", "/patients"].find((href) => canAccessPath(user?.role, href)) || "/patients"
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around px-2 z-40 pb-safe">

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Search, Users, Pill, Calendar, IndianRupee, BookOpen, Home, ArrowRight } from "lucide-react"
 import { searchPatients } from "@/services/patient.service"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { canAccessPath } from "@/lib/access"
 import type { Patient } from "@/lib/types"
 
 interface CommandItem {
@@ -17,6 +19,7 @@ interface CommandItem {
 
 export function CommandPalette() {
   const router = useRouter()
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [patients, setPatients] = useState<Patient[]>([])
@@ -113,7 +116,17 @@ export function CommandPalette() {
       action: () => { router.push("/khata"); setIsOpen(false) },
       category: "Navigation"
     },
-  ], [router])
+  ].filter((command) => {
+    const hrefMap: Record<string, string> = {
+      dashboard: "/",
+      patients: "/patients",
+      visits: "/visits",
+      appointments: "/appointments",
+      billing: "/payments",
+      khata: "/khata",
+    }
+    return canAccessPath(user?.role, hrefMap[command.id] || "/")
+  }), [router, user?.role])
 
   const patientCommands = useMemo<CommandItem[]>(() => patients.map(p => ({
     id: `patient-${p.id}`,

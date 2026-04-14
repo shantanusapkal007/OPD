@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Users, Calendar, Pill, IndianRupee, BookOpen, FileSpreadsheet, Settings, LogOut } from "lucide-react"
+import { Home, Users, Calendar, Pill, IndianRupee, BookOpen, FileSpreadsheet, BarChart3, Settings, LogOut } from "lucide-react"
 import { canAccessPath } from "@/lib/access"
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/visits", label: "Visits", icon: Pill },
   { href: "/payments", label: "Billing", icon: IndianRupee },
   { href: "/khata", label: "Khata", icon: BookOpen },
+  { href: "/stats", label: "Statistics", icon: BarChart3 },
   { href: "/data", label: "Import / Export", icon: FileSpreadsheet },
 ]
 

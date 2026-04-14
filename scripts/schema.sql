@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS public.patients (
   temperature NUMERIC,
   spo2 NUMERIC,
   repetition TEXT,
+  department TEXT CHECK (department IN ('Skin', 'Pediatrician', 'General', 'OBGY')),
+  setting TEXT CHECK (setting IN ('OPD', 'Daycare')),
   khata_balance NUMERIC DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()

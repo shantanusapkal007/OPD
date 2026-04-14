@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency, getTreatmentType } from "@/lib/utils"
+import { canViewClinical, canViewFinancial } from "@/lib/access"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import Image from "next/image"
@@ -20,6 +21,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb-nav"
 import { QuickLinks } from "@/components/ui/quick-links"
 import { useToast } from "@/components/ui/toast"
 import { PatientMedicines } from "@/components/ui/patient-medicines"
+import { useAuth } from "@/components/providers/AuthProvider"
 
 const inputClass = "w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 const labelClass = "text-sm font-medium text-slate-700"
@@ -42,6 +44,10 @@ export default function PatientsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const { showToast } = useToast()
+  const { user } = useAuth()
+  const showClinical = canViewClinical(user?.role)
+  const showFinancial = canViewFinancial(user?.role)
+  const desktopColumnCount = 7 + (showClinical ? 2 : 0) + (showFinancial ? 1 : 0)
 
   const fetchPatients = useCallback(async () => {
     setLoading(true)
@@ -128,6 +134,8 @@ export default function PatientsPage() {
         email: fd.get("email") as string || "",
         occupation: fd.get("occupation") as string || "",
         marital_status: fd.get("marital_status") as string || "",
+        department: fd.get("department") as Patient["department"] || undefined,
+        setting: fd.get("setting") as Patient["setting"] || undefined,
         address: {
           line1: fd.get("addressLine1") as string || "",
           city: fd.get("city") as string || "",
@@ -226,6 +234,26 @@ export default function PatientsPage() {
             <div className="space-y-1"><label className={labelClass}>Blood Group</label><input name="blood_group" type="text" className={inputClass} placeholder="B+" {...FORM_FIELD_PROPS} /></div>
             <div className="space-y-1"><label className={labelClass}>DOB</label><input name="dob" type="date" className={inputClass} {...FORM_FIELD_PROPS} /></div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Department</label>
+              <select name="department" className={inputClass} {...FORM_FIELD_PROPS}>
+                <option value="">Select</option>
+                <option value="Skin">Skin</option>
+                <option value="Pediatrician">Pediatrician</option>
+                <option value="General">General</option>
+                <option value="OBGY">OBGY</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className={labelClass}>Setting</label>
+              <select name="setting" className={inputClass} {...FORM_FIELD_PROPS}>
+                <option value="">Select</option>
+                <option value="OPD">OPD</option>
+                <option value="Daycare">Daycare</option>
+              </select>
+            </div>
+          </div>
 
           {selectedGender?.toLowerCase() === "female" && (
             <div className="p-3 bg-pink-50 border border-pink-100 rounded-lg space-y-3">
@@ -277,10 +305,12 @@ export default function PatientsPage() {
           <div className="space-y-1"><label className={labelClass}>Notes</label><textarea name="notes" className="w-full p-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={2} placeholder="Any additional notes..." {...FORM_FIELD_PROPS} /></div>
 
           {/* Current Medicines */}
-          <div className="pt-3 border-t border-slate-100">
-            <label className={labelClass + " block mb-3"}>Current Medicines</label>
-            <PatientMedicines medicines={regMedicines} onMedicinesChange={setRegMedicines} />
-          </div>
+          {showClinical && (
+            <div className="pt-3 border-t border-slate-100">
+              <label className={labelClass + " block mb-3"}>Current Medicines</label>
+              <PatientMedicines medicines={regMedicines} onMedicinesChange={setRegMedicines} />
+            </div>
+          )}
 
           <div className="pt-4 flex justify-end gap-2 sticky bottom-0 bg-white pb-1">
             <Button type="button" variant="outline" onClick={() => { setIsAddModalOpen(false); resetPatientFormState() }} disabled={isSaving}>Cancel</Button>
@@ -312,9 +342,10 @@ export default function PatientsPage() {
               <th className="px-4 py-3">Age/Gen</th>
               <th className="px-4 py-3">Blood</th>
               <th className="px-4 py-3">City</th>
-              <th className="px-4 py-3">Latest Visit Details</th>
-              <th className="px-4 py-3">Medicines</th>
-              <th className="px-4 py-3">Khata</th>
+              <th className="px-4 py-3">Department</th>
+              {showClinical && <th className="px-4 py-3">Latest Visit Details</th>}
+              {showClinical && <th className="px-4 py-3">Medicines</th>}
+              {showFinancial && <th className="px-4 py-3">Khata</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -349,46 +380,61 @@ export default function PatientsPage() {
                   <td className="px-4 py-3 text-slate-600">{patient.age}{patient.gender?.[0] ? `/${patient.gender[0]}` : ""}</td>
                   <td className="px-4 py-3 text-slate-600">{patient.blood_group || "-"}</td>
                   <td className="px-4 py-3 text-slate-600">{patient.address?.city || "-"}</td>
-                  <td className="px-4 py-3 text-xs">
-                    {latestVisit ? (
-                      <div className="space-y-1">
-                        {latestVisit.complaints && <p className="text-slate-700"><span className="font-semibold">Complaints:</span> {latestVisit.complaints}</p>}
-                        {latestVisit.diagnosis && <p className="text-slate-700"><span className="font-semibold">Diagnosis:</span> {latestVisit.diagnosis}</p>}
-                        {latestVisit.vitals?.bp && <p className="text-slate-700"><span className="font-semibold">BP:</span> {latestVisit.vitals.bp}</p>}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400">No visit records</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {latestVisit && latestVisit.prescriptions && latestVisit.prescriptions.length > 0 ? (
-                      <div className="space-y-1">
-                        {latestVisit.prescriptions.slice(0, 2).map((med, idx) => (
-                          <div key={idx} className="text-slate-700">
-                            <p className="font-medium">{med.name}</p>
-                            <p className="text-slate-500">{med.dosage} - {med.frequency}</p>
-                          </div>
-                        ))}
-                        {latestVisit.prescriptions.length > 2 && (
-                          <p className="text-blue-600 font-medium">+{latestVisit.prescriptions.length - 2} more</p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-slate-400">No medicines</span>
-                    )}
-                  </td>
                   <td className="px-4 py-3">
-                    {(patient.khata_balance ?? 0) !== 0 ? (
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                        {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
-                      </span>
-                    ) : <span className="text-xs text-slate-400">Clear</span>}
+                    {patient.department ? (
+                      <Badge variant="secondary" className="bg-violet-50 text-violet-700">
+                        {patient.department}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-400">Unassigned</span>
+                    )}
                   </td>
+                  {showClinical && (
+                    <td className="px-4 py-3 text-xs">
+                      {latestVisit ? (
+                        <div className="space-y-1">
+                          {latestVisit.complaints && <p className="text-slate-700"><span className="font-semibold">Complaints:</span> {latestVisit.complaints}</p>}
+                          {latestVisit.diagnosis && <p className="text-slate-700"><span className="font-semibold">Diagnosis:</span> {latestVisit.diagnosis}</p>}
+                          {latestVisit.vitals?.bp && <p className="text-slate-700"><span className="font-semibold">BP:</span> {latestVisit.vitals.bp}</p>}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">No visit records</span>
+                      )}
+                    </td>
+                  )}
+                  {showClinical && (
+                    <td className="px-4 py-3 text-xs">
+                      {latestVisit && latestVisit.prescriptions && latestVisit.prescriptions.length > 0 ? (
+                        <div className="space-y-1">
+                          {latestVisit.prescriptions.slice(0, 2).map((med, idx) => (
+                            <div key={idx} className="text-slate-700">
+                              <p className="font-medium">{med.name}</p>
+                              <p className="text-slate-500">{med.dosage} - {med.frequency}</p>
+                            </div>
+                          ))}
+                          {latestVisit.prescriptions.length > 2 && (
+                            <p className="text-blue-600 font-medium">+{latestVisit.prescriptions.length - 2} more</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">No medicines</span>
+                      )}
+                    </td>
+                  )}
+                  {showFinancial && (
+                    <td className="px-4 py-3">
+                      {(patient.khata_balance ?? 0) !== 0 ? (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                          {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
+                        </span>
+                      ) : <span className="text-xs text-slate-400">Clear</span>}
+                    </td>
+                  )}
                 </tr>
               )
             })}
             {!loading && patients.length === 0 && (
-              <tr><td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">No patients found. Add your first patient!</td></tr>
+              <tr><td colSpan={desktopColumnCount} className="px-6 py-12 text-center text-sm text-slate-500">No patients found. Add your first patient!</td></tr>
             )}
           </tbody>
         </table>
@@ -421,6 +467,11 @@ export default function PatientsPage() {
               <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
                 <span>{patient.age} yrs | {patient.gender}{patient.blood_group ? ` | ${patient.blood_group}` : ""}</span>
                 <div className="flex items-center gap-2">
+                  {patient.department && (
+                    <Badge variant="secondary" className="bg-violet-50 text-violet-700">
+                      {patient.department}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-bold ${treatment_type === 'Homeopathic' ? 'border-green-200 text-green-700 bg-green-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
                     {treatment_type}
                   </Badge>
@@ -429,7 +480,7 @@ export default function PatientsPage() {
               </div>
               
               {/* Latest Visit Details */}
-              {latestVisit && (
+              {showClinical && latestVisit && (
                 <div className="mt-3 p-3 bg-slate-50 rounded-lg text-xs space-y-2 border border-slate-100">
                   {latestVisit.complaints && (
                     <p><span className="font-semibold text-slate-700">Complaints:</span> <span className="text-slate-600">{latestVisit.complaints}</span></p>
@@ -460,7 +511,7 @@ export default function PatientsPage() {
                 </div>
               )}
               
-              {(patient.khata_balance ?? 0) !== 0 && (
+              {showFinancial && (patient.khata_balance ?? 0) !== 0 && (
                 <div className="mt-3">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(patient.khata_balance || 0) < 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
                     Khata: {(patient.khata_balance || 0) < 0 ? `Due ${formatCurrency(Math.abs(patient.khata_balance || 0))}` : `Advance ${formatCurrency(patient.khata_balance || 0)}`}
