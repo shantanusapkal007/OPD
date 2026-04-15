@@ -34,6 +34,10 @@ function parseOptionalFloat(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 export default function VisitsPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([])
 
@@ -92,7 +96,7 @@ export default function VisitsPage() {
       </head><body>
         <div class="header">
           <h1>${process.env.NEXT_PUBLIC_APP_NAME || 'OPD Clinic'}</h1>
-          <h3>Dr. Consultant Physician • MBBS, MD</h3>
+          <h3>Dr. Consultant Physician | MBBS, MD</h3>
         </div>
         <div class="pat-info">
           <div><strong>Patient:</strong> ${visit.patient_name}</div>
@@ -295,7 +299,7 @@ export default function VisitsPage() {
       setVisitImagePreviews(files.map((file) => URL.createObjectURL(file)))
       setUploadError("")
       uploadVisitImages(files).catch(() => undefined)
-    } catch (error: any) {
+    } catch (error: unknown) {
       visitImageUploadTokenRef.current += 1
       visitImageUploadPromiseRef.current = null
       setVisitImageFiles([])
@@ -304,7 +308,7 @@ export default function VisitsPage() {
       setIsUploadingImages(false)
       revokeVisitImagePreviews(visitImagePreviews)
       setVisitImagePreviews([])
-      setUploadError(error.message || "Invalid visit images.")
+      setUploadError(getErrorMessage(error, "Invalid visit images."))
       if (imageInputRef.current) {
         imageInputRef.current.value = ""
       }
@@ -355,7 +359,7 @@ export default function VisitsPage() {
         }
       }
 
-      const newVisitId = await addVisit({
+      await addVisit({
         patient_id: selectedPatient.id!,
         patient_name: selectedPatient.full_name,
         visit_images: visit_images,
@@ -384,8 +388,8 @@ export default function VisitsPage() {
       setIsVisitModalOpen(false)
       resetVisitFormState()
       fetchVisits()
-    } catch (e: any) {
-      showToast(e.message || "Failed to record visit.", "error")
+    } catch (error: unknown) {
+      showToast(getErrorMessage(error, "Failed to record visit."), "error")
     } finally {
       setIsUploadingImages(false)
       setIsSaving(false)
@@ -436,7 +440,7 @@ export default function VisitsPage() {
                   }
                   setSelectedPatient(createdPatient);
                   setIsQuickAddPatient(false);
-                } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
+                } catch (error: unknown) { showToast(getErrorMessage(error, "Failed to add patient"), 'error'); } finally { setIsSaving(false); }
               }}>{isSaving ? "Saving..." : "Save & Select"}</Button>
             </div>
           ) : (

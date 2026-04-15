@@ -1,8 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Printer } from "lucide-react"
 import { getPatient } from "@/services/patient.service"
 import { getVisit } from "@/services/visit.service"
@@ -12,7 +12,10 @@ import type { ClinicSettings, Patient, Visit } from "@/lib/types"
 export default function PrintPrescriptionPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const visitId = params?.id as string
+  const shouldAutoPrint = searchParams.get("autoprint") === "1"
+  const hasTriggeredAutoPrint = useRef(false)
 
   const [visit, setVisit] = useState<Visit | null>(null)
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -45,6 +48,19 @@ export default function PrintPrescriptionPage() {
 
     loadData()
   }, [visitId])
+
+  useEffect(() => {
+    if (!shouldAutoPrint || loading || !visit || !patient || hasTriggeredAutoPrint.current) {
+      return
+    }
+
+    hasTriggeredAutoPrint.current = true
+    const timeoutId = window.setTimeout(() => {
+      window.print()
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loading, patient, shouldAutoPrint, visit])
 
   if (loading) {
     return <div className="min-h-screen bg-white p-8 text-center text-black">Loading prescription...</div>

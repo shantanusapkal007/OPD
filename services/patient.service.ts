@@ -25,6 +25,10 @@ function normalizeCaseNumber(value?: string | null) {
   return value?.trim().toUpperCase() ?? "";
 }
 
+function sanitizeSearchTerm(value: string) {
+  return cleanText(value).replace(/[,%()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function incrementCaseNumber(caseNumber: string) {
   const normalized = normalizeCaseNumber(caseNumber);
   const match = normalized.match(/(\d+)(?!.*\d)/);
@@ -85,8 +89,15 @@ export async function getPatients(limit?: number): Promise<Patient[]> {
 }
 
 export async function getNextPatientCaseNumber(): Promise<string> {
-  const patients = await getPatients();
-  for (const patient of patients) {
+  const { data, error } = await supabase
+    .from("patients")
+    .select("case_number")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw new Error(error.message);
+
+  for (const patient of data ?? []) {
     const next = incrementCaseNumber(patient.case_number);
     if (next) return next;
   }
@@ -108,19 +119,32 @@ export async function getPatient(id: string): Promise<Patient | null> {
 }
 
 export async function searchPatients(term: string, maxResults?: number): Promise<Patient[]> {
-  const trimmed = term.trim();
-  if (!trimmed) return getPatients();
+  const trimmed = sanitizeSearchTerm(term);
+  if (!trimmed) {
+    return typeof maxResults === "number" ? getPatients(maxResults) : getPatients();
+  }
 
-  const patients = await getPatients();
-  const lower = trimmed.toLowerCase();
-  const results = patients.filter(
-    (p) =>
-      p.full_name.toLowerCase().includes(lower) ||
-      p.mobile_number.includes(trimmed) ||
-      p.case_number.toLowerCase().includes(lower)
-  );
+  const normalizedCaseNumber = normalizeCaseNumber(trimmed);
+  const phoneTerm = cleanPhone(trimmed);
+  let query = supabase
+    .from("patients")
+    .select("*")
+    .or(
+      [
+        `full_name.ilike.%${trimmed}%`,
+        `mobile_number.ilike.%${phoneTerm}%`,
+        `case_number.ilike.%${normalizedCaseNumber}%`,
+      ].join(",")
+    )
+    .order("created_at", { ascending: false });
 
-  return typeof maxResults === "number" ? results.slice(0, maxResults) : results;
+  if (typeof maxResults === "number") {
+    query = query.limit(maxResults);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Patient[];
 }
 
 export async function addPatient(
@@ -134,9 +158,14 @@ export async function addPatient(
   if (!fullName) throw new Error("Patient name is required.");
   if (!mobileNumber) throw new Error("Mobile number is required.");
 
-  // Check duplicate case number
-  const existing = await getPatients();
-  if (existing.find((p) => normalizeCaseNumber(p.case_number) === caseNumber)) {
+  const { data: existing, error: existingError } = await supabase
+    .from("patients")
+    .select("id")
+    .eq("case_number", caseNumber)
+    .maybeSingle();
+
+  if (existingError) throw new Error(existingError.message);
+  if (existing) {
     throw new Error("Case number already exists.");
   }
 
@@ -175,6 +204,18 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
   if (data.case_number) updates.case_number = normalizeCaseNumber(data.case_number);
   if (data.full_name) updates.full_name = cleanText(data.full_name);
   if (data.mobile_number) updates.mobile_number = cleanPhone(data.mobile_number);
+  if ("alternate_mobile" in data) updates.alternate_mobile = cleanPhone(data.alternate_mobile);
+  if ("email" in data) updates.email = cleanText(data.email);
+  if ("occupation" in data) updates.occupation = cleanText(data.occupation);
+  if ("marital_status" in data) updates.marital_status = cleanText(data.marital_status);
+  if ("allergies" in data) updates.allergies = cleanText(data.allergies);
+  if ("chronic_diseases" in data) updates.chronic_diseases = cleanText(data.chronic_diseases);
+  if ("emergency_contact" in data) updates.emergency_contact = cleanPhone(data.emergency_contact);
+  if ("notes" in data) updates.notes = cleanText(data.notes);
+  if ("present_complaints" in data) updates.present_complaints = cleanText(data.present_complaints);
+  if ("bp" in data) updates.bp = cleanText(data.bp);
+  if ("repetition" in data) updates.repetition = cleanText(data.repetition);
+  if ("lmp" in data) updates.lmp = data.lmp ? cleanText(data.lmp) : null;
   if (data.current_medicines) updates.current_medicines = normalizeMedicines(data.current_medicines);
 
   const cleaned = stripUndefinedValues(updates);

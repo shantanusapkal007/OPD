@@ -3,6 +3,9 @@ import type { NextConfig } from "next"
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: process.cwd(),
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -22,7 +25,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  transpilePackages: ["motion"],
   webpack: (config, { dev }) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // File watching is disabled to prevent flickering during agent edits.

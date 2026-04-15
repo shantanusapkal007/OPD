@@ -1,16 +1,29 @@
 "use client";
 
-import { InstallPrompt } from "@/components/pwa/install-prompt"
+import dynamic from "next/dynamic"
 import { Sidebar } from "./sidebar"
 import { Header } from "./header"
 import { BottomNav } from "./bottom-nav"
 import { ToastContainer } from "@/components/ui/toast"
-import { CommandPalette } from "@/components/ui/command-palette"
-import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { useAuth } from "../providers/AuthProvider"
 import { canAccessPath } from "@/lib/access"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
+
+const CommandPalette = dynamic(
+  () => import("@/components/ui/command-palette").then((mod) => mod.CommandPalette),
+  { ssr: false }
+)
+
+const FloatingActionButton = dynamic(
+  () => import("@/components/ui/floating-action-button").then((mod) => mod.FloatingActionButton),
+  { ssr: false }
+)
+
+const InstallPrompt = dynamic(
+  () => import("@/components/pwa/install-prompt").then((mod) => mod.InstallPrompt),
+  { ssr: false }
+)
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

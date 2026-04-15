@@ -1,10 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Trash2, Edit2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Medicine } from "@/lib/types"
-import { useToast } from "@/components/ui/toast"
+import { Plus, Trash2 } from "lucide-react"
+import type { Medicine } from "@/lib/types"
 
 interface PatientMedicinesProps {
   medicines: Medicine[] | undefined
@@ -12,50 +9,42 @@ interface PatientMedicinesProps {
   readOnly?: boolean
 }
 
-export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly = false }: PatientMedicinesProps) {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [formData, setFormData] = useState<Medicine | null>(null)
-  const { showToast } = useToast()
+function createEmptyMedicine(): Medicine {
+  return {
+    name: "",
+    potency: "",
+    dosage: "",
+    frequency: "",
+    days: 0,
+    notes: "",
+  }
+}
 
+export function PatientMedicines({
+  medicines = [],
+  onMedicinesChange,
+  readOnly = false,
+}: PatientMedicinesProps) {
   const meds = medicines || []
 
   const handleAdd = () => {
-    setEditingIndex(meds.length)
-    setFormData({ name: "", dosage: "", frequency: "", days: 0 })
+    onMedicinesChange([...meds, createEmptyMedicine()])
   }
 
-  const handleEdit = (index: number) => {
-    setEditingIndex(index)
-    setFormData({ ...meds[index] })
-  }
-
-  const handleSave = () => {
-    if (!formData || !formData.name.trim() || !formData.dosage.trim() || !formData.frequency.trim()) {
-      showToast("Please fill in all required fields", "warning")
-      return
-    }
-
-    const newMeds = [...meds]
-    if (editingIndex !== null) {
-      if (editingIndex === newMeds.length) {
-        newMeds.push(formData)
-      } else {
-        newMeds[editingIndex] = formData
-      }
-    }
-    
-    onMedicinesChange(newMeds)
-    setEditingIndex(null)
-    setFormData(null)
+  const handleUpdate = <K extends keyof Medicine>(
+    index: number,
+    field: K,
+    value: Medicine[K]
+  ) => {
+    onMedicinesChange(
+      meds.map((medicine, medicineIndex) =>
+        medicineIndex === index ? { ...medicine, [field]: value } : medicine
+      )
+    )
   }
 
   const handleDelete = (index: number) => {
-    onMedicinesChange(meds.filter((_, i) => i !== index))
-  }
-
-  const handleCancel = () => {
-    setEditingIndex(null)
-    setFormData(null)
+    onMedicinesChange(meds.filter((_, medicineIndex) => medicineIndex !== index))
   }
 
   if (readOnly) {
@@ -64,15 +53,37 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
     }
 
     return (
-      <div className="space-y-3">
-        {meds.map((med, idx) => (
-          <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <h4 className="font-semibold text-slate-900">{med.name}</h4>
-            <div className="text-sm text-slate-600 mt-2 space-y-1">
-              <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
-              <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
-              <p><span className="font-medium">Duration:</span> {med.days} days</p>
-              {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
+      <div className="space-y-4">
+        {meds.map((medicine, index) => (
+          <div
+            key={`${medicine.name}-${index}`}
+            className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-lg font-semibold text-slate-900">{medicine.name}</h4>
+                {medicine.potency ? (
+                  <p className="mt-1 text-sm font-medium text-emerald-700">
+                    Potency: {medicine.potency}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="mt-3 space-y-1.5 text-sm text-slate-600">
+              <p>
+                <span className="font-medium text-slate-700">Dosage:</span> {medicine.dosage || "-"}
+              </p>
+              <p>
+                <span className="font-medium text-slate-700">Frequency:</span> {medicine.frequency || "-"}
+              </p>
+              <p>
+                <span className="font-medium text-slate-700">Duration:</span> {medicine.days || 0} days
+              </p>
+              {medicine.notes ? (
+                <p>
+                  <span className="font-medium text-slate-700">Notes:</span> {medicine.notes}
+                </p>
+              ) : null}
             </div>
           </div>
         ))}
@@ -82,133 +93,120 @@ export function PatientMedicines({ medicines = [], onMedicinesChange, readOnly =
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3">
-        {meds.map((med, idx) => (
-          <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900">{med.name}</h4>
-                <div className="text-sm text-slate-600 mt-2 space-y-1">
-                  <p><span className="font-medium">Dosage:</span> {med.dosage}</p>
-                  <p><span className="font-medium">Frequency:</span> {med.frequency}</p>
-                  <p><span className="font-medium">Duration:</span> {med.days} days</p>
-                  {med.notes && <p><span className="font-medium">Notes:</span> {med.notes}</p>}
+      {meds.length > 0 ? (
+        <div className="space-y-4">
+          {meds.map((medicine, index) => (
+            <div
+              key={index}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Medicine {index + 1}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Fill all rows you need, then save the list once.
+                  </p>
                 </div>
-              </div>
-              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleEdit(idx)}
-                  className="p-1 hover:bg-blue-200 rounded transition-colors"
-                  title="Edit medicine"
-                >
-                  <Edit2 className="w-4 h-4 text-blue-600" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(idx)}
-                  className="p-1 hover:bg-red-200 rounded transition-colors"
+                  onClick={() => handleDelete(index)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-rose-200 text-rose-600 transition hover:bg-rose-50"
                   title="Remove medicine"
                 >
-                  <Trash2 className="w-4 h-4 text-red-600" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Medicine Name *</label>
+                  <input
+                    type="text"
+                    value={medicine.name}
+                    onChange={(event) => handleUpdate(index, "name", event.target.value)}
+                    placeholder="e.g. Rhus tox"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Potency</label>
+                  <input
+                    type="text"
+                    value={medicine.potency || ""}
+                    onChange={(event) => handleUpdate(index, "potency", event.target.value)}
+                    placeholder="e.g. 200, 1M"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Dosage *</label>
+                  <input
+                    type="text"
+                    value={medicine.dosage}
+                    onChange={(event) => handleUpdate(index, "dosage", event.target.value)}
+                    placeholder="e.g. 1m"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Frequency *</label>
+                  <input
+                    type="text"
+                    value={medicine.frequency}
+                    onChange={(event) => handleUpdate(index, "frequency", event.target.value)}
+                    placeholder="e.g. OD, BD, TDS"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Duration (days)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={medicine.days || ""}
+                    onChange={(event) =>
+                      handleUpdate(index, "days", Number.parseInt(event.target.value, 10) || 0)
+                    }
+                    placeholder="e.g. 15"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-700">Notes</label>
+                  <input
+                    type="text"
+                    value={medicine.notes || ""}
+                    onChange={(event) => handleUpdate(index, "notes", event.target.value)}
+                    placeholder="e.g. Before meals"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {editingIndex !== null && formData && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-          <h4 className="font-semibold text-slate-900">
-            {editingIndex === meds.length ? "Add Medicine" : "Edit Medicine"}
-          </h4>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Medicine Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Tab Aspirin 500mg"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Dosage *</label>
-              <input
-                type="text"
-                value={formData.dosage}
-                onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-                placeholder="e.g., 1-0-1"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Frequency *</label>
-              <input
-                type="text"
-                value={formData.frequency}
-                onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                placeholder="e.g., BD, TDS"
-                className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Duration (days) *</label>
-            <input
-              type="number"
-              value={formData.days}
-              onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) || 0 })}
-              placeholder="e.g., 7"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              min="1"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Notes (Optional)</label>
-            <input
-              type="text"
-              value={formData.notes || ""}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="e.g., After meals"
-              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              Save Medicine
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors text-sm font-medium"
-            >
-              Cancel
-            </button>
-          </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 px-4 py-6 text-center text-sm text-slate-500">
+          No medicines added yet. Start with the button below.
         </div>
       )}
 
-      {editingIndex === null && (
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="w-full py-2 px-3 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Add Medicine
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleAdd}
+        className="w-full rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-4 py-3 text-sm font-semibold text-blue-600 transition hover:border-blue-300 hover:bg-blue-50"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Plus className="h-4 w-4" /> Add Medicine
+        </span>
+      </button>
     </div>
   )
 }

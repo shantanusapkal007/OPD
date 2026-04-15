@@ -1,4 +1,4 @@
-// ─── Users ───────────────────────────────────────────────
+// Users
 export type UserRole = "admin" | "doctor" | "receptionist" | "nurse";
 export type TreatmentType = "Allopathic" | "Homeopathic";
 
@@ -13,7 +13,7 @@ export interface AppUser {
   updated_at?: string;
 }
 
-// ─── Patients ────────────────────────────────────────────
+// Patients
 export interface Patient {
   id?: string;
   case_number: string;
@@ -56,7 +56,7 @@ export interface Patient {
   updated_at: string;
 }
 
-// ─── Appointments ────────────────────────────────────────
+// Appointments
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no-show";
 
 export interface Appointment {
@@ -73,7 +73,7 @@ export interface Appointment {
   created_at: string;
 }
 
-// ─── Visits (Case Papers) ────────────────────────────────
+// Visits (Case Papers)
 export interface Medicine {
   name: string;
   potency?: string;
@@ -126,7 +126,7 @@ export interface Visit {
   created_at: string;
 }
 
-// ─── Payments ────────────────────────────────────────────
+// Payments
 export type PaymentMethod = "cash" | "upi" | "card";
 export type PaymentStatus = "paid" | "pending" | "refunded";
 
@@ -144,7 +144,7 @@ export interface Payment {
   created_at: string;
 }
 
-// ─── Clinic Settings ─────────────────────────────────────
+// Clinic Settings
 export interface ClinicSettings {
   id?: string;
   clinic_name: string;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, Edit, Calendar, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen } from "lucide-react"
+import { ArrowLeft, Edit, Calendar, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +52,7 @@ export default function PatientDetailPage() {
   const [isEditVisitModalOpen, setIsEditVisitModalOpen] = useState(false)
   const [clinicalDetailsFormData, setClinicalDetailsFormData] = useState({
     present_complaints: "",
+    lmp: "",
     weight: "",
     height_cm: "",
     bp: "",
@@ -70,6 +71,7 @@ export default function PatientDetailPage() {
 
   const buildClinicalDetailsFormData = (nextPatient: Patient | null) => ({
     present_complaints: nextPatient?.present_complaints || "",
+    lmp: nextPatient?.lmp || "",
     weight: nextPatient?.weight?.toString() || "",
     height_cm: nextPatient?.height_cm?.toString() || "",
     bp: nextPatient?.bp || "",
@@ -84,6 +86,22 @@ export default function PatientDetailPage() {
 
     const parsed = Number.parseFloat(trimmed)
     return Number.isFinite(parsed) ? parsed : null
+  }
+
+  const formatVisitDate = (value?: string) => {
+    if (!value) return "-"
+    return new Date(value).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  }
+
+  const openPrescriptionPrint = (visitId?: string, autoPrint = false) => {
+    if (!visitId) return
+
+    const url = autoPrint ? `/visits/${visitId}/print?autoprint=1` : `/visits/${visitId}/print`
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 
   const sanitizeMedicines = (medicines: Medicine[]) =>
@@ -106,6 +124,18 @@ export default function PatientDetailPage() {
           medicine.notes
         )
       )
+
+  const hasIncompleteMedicines = (medicines: Medicine[]) =>
+    medicines.some((medicine) => {
+      const name = medicine.name.trim()
+      const potency = medicine.potency?.trim() || ""
+      const dosage = medicine.dosage.trim()
+      const frequency = medicine.frequency.trim()
+      const notes = medicine.notes?.trim() || ""
+      const hasAnyValue = Boolean(name || potency || dosage || frequency || notes || medicine.days)
+
+      return hasAnyValue && (!name || !dosage || !frequency)
+    })
 
   const resetEditFormState = (nextPatient: Patient | null = patient) => {
     if (!nextPatient) return
@@ -163,6 +193,12 @@ export default function PatientDetailPage() {
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!patient?.id) return
+
+    if (hasIncompleteMedicines(editMedicines)) {
+      showToast("Each medicine needs name, dosage, and frequency before saving.", "warning")
+      return
+    }
+
     setIsSaving(true)
     const form = e.currentTarget
     const fd = new FormData(form)
@@ -213,8 +249,10 @@ export default function PatientDetailPage() {
     if (!patient?.id) return
     setIsSavingClinical(true)
     try {
+      const showLmpField = patient.gender === "Female" || Boolean(patient.lmp)
       const updateData = {
         present_complaints: clinicalDetailsFormData.present_complaints.trim(),
+        ...(showLmpField ? { lmp: clinicalDetailsFormData.lmp || null } : {}),
         weight: parseOptionalNumber(clinicalDetailsFormData.weight),
         height_cm: parseOptionalNumber(clinicalDetailsFormData.height_cm),
         bp: clinicalDetailsFormData.bp.trim(),
@@ -237,6 +275,11 @@ export default function PatientDetailPage() {
 
   const handleSaveMedicines = async () => {
     if (!patient?.id) return
+
+    if (hasIncompleteMedicines(medicineDraft)) {
+      showToast("Each medicine needs name, dosage, and frequency before saving.", "warning")
+      return
+    }
 
     setIsSavingMedicines(true)
     try {
@@ -266,8 +309,12 @@ export default function PatientDetailPage() {
   const normalizedSavedMedicines = sanitizeMedicines(savedMedicines)
   const normalizedMedicineDraft = sanitizeMedicines(medicineDraft)
   const hasSavedMedicines = normalizedSavedMedicines.length > 0
-  const hasMedicineChanges = normalizedMedicineDraft.length > 0
+  const hasMedicineChanges =
+    JSON.stringify(normalizedMedicineDraft) !== JSON.stringify(normalizedSavedMedicines)
+  const showLmpInClinicalWorkspace = patient.gender === "Female" || Boolean(patient.lmp)
+  const hasIncompleteMedicineRows = hasIncompleteMedicines(medicineDraft)
   const clinicalSummaryItems = [
+    ...(showLmpInClinicalWorkspace ? [{ label: "LMP", value: patient.lmp || "-" }] : []),
     { label: "Weight", value: patient.weight != null ? `${patient.weight} kg` : "-" },
     { label: "Height", value: patient.height_cm != null ? `${patient.height_cm} cm` : "-" },
     { label: "Blood Pressure", value: patient.bp || "-" },
@@ -275,8 +322,11 @@ export default function PatientDetailPage() {
     { label: "SpO2", value: patient.spo2 != null ? `${patient.spo2}%` : "-" },
     { label: "Repetition", value: patient.repetition || "-" },
   ]
-  const hasClinicalDetails = clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.present_complaints)
+  const hasClinicalDetails =
+    clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.present_complaints)
   const hasPatientCareSummary = hasClinicalDetails || hasSavedMedicines
+  const printableVisits = visits.filter((visit) => (visit.prescriptions?.length ?? 0) > 0)
+  const latestPrintableVisit = printableVisits[0] ?? null
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -558,6 +608,105 @@ export default function PatientDetailPage() {
           </div>
         )}
 
+        {showClinical && (
+          <div className="mt-6 rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-sky-50 p-5 shadow-[0_20px_50px_-30px_rgba(245,158,11,0.45)]">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
+                  <Printer className="h-4 w-4 text-amber-600" /> Prescription Printing
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Open a clean prescription preview or send any saved prescription directly to print.
+                </p>
+              </div>
+              <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
+                {printableVisits.length} printable visit{printableVisits.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            {latestPrintableVisit ? (
+              <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
+                <div className="rounded-[24px] border border-amber-100 bg-white/90 p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
+                    Latest Prescription
+                  </p>
+                  <h4 className="mt-2 text-xl font-semibold text-slate-900">
+                    {latestPrintableVisit.diagnosis || "Consultation"}
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Visit date: {formatVisitDate(latestPrintableVisit.created_at)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {latestPrintableVisit.prescriptions?.length ?? 0} medicine
+                    {(latestPrintableVisit.prescriptions?.length ?? 0) === 1 ? "" : "s"} saved for printing
+                  </p>
+                  {latestPrintableVisit.advice ? (
+                    <p className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                      {latestPrintableVisit.advice}
+                    </p>
+                  ) : null}
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Button
+                      className="bg-slate-900 text-white hover:bg-slate-800"
+                      onClick={() => openPrescriptionPrint(latestPrintableVisit.id)}
+                    >
+                      <Printer className="mr-2 h-4 w-4" /> Open Preview
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
+                      onClick={() => openPrescriptionPrint(latestPrintableVisit.id, true)}
+                    >
+                      <Printer className="mr-2 h-4 w-4" /> Print Now
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-sky-100 bg-white/85 p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">
+                    Printable History
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {printableVisits.slice(0, 4).map((visit) => (
+                      <div
+                        key={visit.id}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            {formatVisitDate(visit.created_at)}
+                          </p>
+                          <p className="truncate text-sm font-medium text-slate-900">
+                            {visit.diagnosis || "Consultation"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {visit.prescriptions?.length ?? 0} medicine
+                            {(visit.prescriptions?.length ?? 0) === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 border-slate-200 bg-white"
+                          onClick={() => openPrescriptionPrint(visit.id, true)}
+                        >
+                          <Printer className="mr-2 h-4 w-4" /> Print
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-slate-200 bg-white/80 px-5 py-8 text-center text-sm text-slate-500">
+                No prescription is ready to print yet. Record a visit with medicines to enable printable prescriptions for this patient.
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/60 pt-6 sm:grid-cols-3">
           <Button variant="outline" className="w-full justify-start rounded-2xl border-sky-200 bg-white/80 text-slate-700 hover:bg-sky-50" onClick={() => router.push('/appointments')}>
             <Calendar className="w-4 h-4 mr-2 text-sky-600" /> Book Appointment
@@ -581,13 +730,19 @@ export default function PatientDetailPage() {
               </p>
             </div>
 
-            <div className="space-y-6">
-              <form onSubmit={handleSaveClinicalDetails} {...FORM_PROPS} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+            <div className="grid gap-6 xl:grid-cols-[1.1fr,0.95fr]">
+              <form
+                onSubmit={handleSaveClinicalDetails}
+                {...FORM_PROPS}
+                className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white to-sky-50/70 p-5 space-y-4 shadow-sm"
+              >
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                     <Activity className="w-4 h-4 text-blue-600" /> Clinical Details
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">Track complaints, vitals, and repetition in one place.</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Track complaints, vitals, and repetition in one place.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -602,7 +757,25 @@ export default function PatientDetailPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {showLmpInClinicalWorkspace && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">LMP</label>
+                    <input
+                      type="date"
+                      value={clinicalDetailsFormData.lmp}
+                      onChange={(e) =>
+                        setClinicalDetailsFormData({
+                          ...clinicalDetailsFormData,
+                          lmp: e.target.value,
+                        })
+                      }
+                      className={ic}
+                      {...FORM_FIELD_PROPS}
+                    />
+                  </div>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">Weight (kg)</label>
                     <input
@@ -675,13 +848,13 @@ export default function PatientDetailPage() {
                 </div>
 
                 <div className="pt-2 flex justify-end">
-                  <Button type="submit" disabled={isSavingClinical} className="bg-green-600 hover:bg-green-700">
+                  <Button type="submit" disabled={isSavingClinical} className="bg-blue-600 hover:bg-blue-700">
                     {isSavingClinical ? "Saving..." : "Save Clinical Details"}
                   </Button>
                 </div>
               </form>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white to-emerald-50/60 p-5 shadow-sm">
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                     <Pill className="w-4 h-4 text-blue-600" /> Current Medicines
@@ -692,6 +865,12 @@ export default function PatientDetailPage() {
                 </div>
 
                 <PatientMedicines medicines={medicineDraft} onMedicinesChange={setMedicineDraft} />
+
+                {hasIncompleteMedicineRows ? (
+                  <p className="mt-4 text-sm text-amber-600">
+                    Complete name, dosage, and frequency for each medicine before saving.
+                  </p>
+                ) : null}
 
                 <div className="pt-4 flex justify-end gap-2">
                   <Button
@@ -704,7 +883,7 @@ export default function PatientDetailPage() {
                   </Button>
                   <Button
                     type="button"
-                    disabled={isSavingMedicines || !hasMedicineChanges}
+                    disabled={isSavingMedicines || !hasMedicineChanges || hasIncompleteMedicineRows}
                     onClick={handleSaveMedicines}
                   >
                     {isSavingMedicines ? "Saving..." : "Save Medicines"}

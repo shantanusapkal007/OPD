@@ -36,6 +36,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
+  const hydrateUser = async (authUser: {
+    id: string;
+    email?: string;
+    user_metadata?: { full_name?: string; avatar_url?: string; name?: string };
+  }) => {
+    try {
+      const displayName =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        "Doctor";
+      const photoURL = authUser.user_metadata?.avatar_url || "";
+
+      const appUser = await getOrCreateUser(
+        authUser.id,
+        displayName,
+        authUser.email || "",
+        photoURL
+      );
+
+      setUser({
+        id: appUser.id,
+        displayName: appUser.name || "Doctor",
+        email: appUser.email,
+        role: appUser.role,
+        photoURL: appUser.photo_url,
+      });
+    } catch (error: unknown) {
+      console.error("Failed to hydrate user:", error);
+      setUser(null);
+    }
+  };
+
   useEffect(() => {
     // Check initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -60,38 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function hydrateUser(authUser: {
-    id: string;
-    email?: string;
-    user_metadata?: { full_name?: string; avatar_url?: string; name?: string };
-  }) {
-    try {
-      const displayName =
-        authUser.user_metadata?.full_name ||
-        authUser.user_metadata?.name ||
-        "Doctor";
-      const photoURL = authUser.user_metadata?.avatar_url || "";
-
-      const appUser = await getOrCreateUser(
-        authUser.id,
-        displayName,
-        authUser.email || "",
-        photoURL
-      );
-
-      setUser({
-        id: appUser.id,
-        displayName: appUser.name || "Doctor",
-        email: appUser.email,
-        role: appUser.role,
-        photoURL: appUser.photo_url,
-      });
-    } catch (error) {
-      console.error("Failed to hydrate user:", error);
-      setUser(null);
-    }
-  }
-
   const signInWithGoogle = async (): Promise<void> => {
     setLoading(true);
     try {
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLoading(false);
       throw error;
     }

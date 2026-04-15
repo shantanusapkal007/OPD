@@ -81,6 +81,18 @@ export default function PatientsPage() {
     }
   }, [photoPreview])
 
+  const hasIncompleteMedicines = (medicines: Medicine[]) =>
+    medicines.some((medicine) => {
+      const name = medicine.name.trim()
+      const potency = medicine.potency?.trim() || ""
+      const dosage = medicine.dosage.trim()
+      const frequency = medicine.frequency.trim()
+      const notes = medicine.notes?.trim() || ""
+      const hasAnyValue = Boolean(name || potency || dosage || frequency || notes || medicine.days)
+
+      return hasAnyValue && (!name || !dosage || !frequency)
+    })
+
   const resetPatientFormState = () => {
     setSelectedGender("Male")
     setSelectedTreatmentType("Allopathic")
@@ -112,6 +124,12 @@ export default function PatientsPage() {
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (hasIncompleteMedicines(regMedicines)) {
+      showToast("Each medicine needs name, dosage, and frequency before saving.", "warning")
+      return
+    }
+
     setIsSaving(true)
     const form = e.currentTarget
     const fd = new FormData(form)

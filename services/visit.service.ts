@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { clearPatientCache } from "@/services/patient.service";
-import { validateVisitBasics, calculateEDD } from "@/lib/visit-validators";
-import type { Visit } from "@/lib/types";
+import { validateVisitBasics } from "@/lib/visit-validators";
+import type { Medicine, Visit } from "@/lib/types";
 
 function stripUndefinedValues<T>(value: T): T {
   if (Array.isArray(value)) return value.map((item) => stripUndefinedValues(item)) as T;
@@ -38,7 +38,7 @@ export async function getVisitsByPatient(patientId: string): Promise<Visit[]> {
 
 /**
  * Fetch the latest visit for multiple patients.
- * No Firestore 10-item limit — PostgreSQL handles it natively.
+ * No Firestore 10-item limit - PostgreSQL handles it natively.
  */
 export async function getLatestVisitsForPatients(
   patientIds: string[]
@@ -110,7 +110,7 @@ export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<
         date: new Date().toISOString().split("T")[0],
       });
     } else {
-      // Unpaid — add to Khata (negative balance = owes money)
+      // Unpaid visit: add the amount to khata (negative balance means due)
       await supabase.rpc("update_khata_balance", {
         p_id: data.patient_id,
         p_amount: -total_bill,
@@ -210,7 +210,7 @@ export async function removeMedicineFromVisit(
 
 export async function addMedicineToVisit(
   visitId: string,
-  medicine: any,
+  medicine: Medicine,
   userId: string
 ): Promise<void> {
   const visit = await getVisit(visitId);
@@ -222,7 +222,7 @@ export async function addMedicineToVisit(
 export async function updateMedicineInVisit(
   visitId: string,
   medicineIndex: number,
-  medicine: any,
+  medicine: Medicine,
   userId: string
 ): Promise<void> {
   const visit = await getVisit(visitId);
