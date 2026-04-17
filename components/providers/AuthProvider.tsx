@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, checkSupabaseHealth } from "@/lib/supabase";
 import { getOrCreateUser } from "@/services/user.service";
 import type { UserRole } from "@/lib/types";
 
@@ -69,13 +69,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        await hydrateUser(session.user);
-      }
-      setLoading(false);
+    // Pre-warm Supabase (wakes up paused free-tier projects)
+    checkSupabaseHealth().then(() => {
+      // After wake-up, check the real session
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user) {
+          await hydrateUser(session.user);
+        }
+        setLoading(false);
+      });
     });
+
+    // Safety timeout: never leave the user stuck on "Loading..." forever
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 20000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -89,7 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async (): Promise<void> => {

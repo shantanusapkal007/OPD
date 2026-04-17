@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import type { Appointment, AppointmentStatus } from "@/lib/types";
 
 export async function getAppointments(): Promise<Appointment[]> {
@@ -36,7 +37,7 @@ export async function getAppointmentsByPatient(patientId: string): Promise<Appoi
 
 export async function addAppointment(
   data: Omit<Appointment, "id" | "created_at">
-): Promise<string> {
+): Promise<Appointment> {
   const appointment_date = data.appointment_date?.trim();
   const time_slot = data.time_slot?.trim();
   const patient_name = data.patient_name?.trim();
@@ -51,7 +52,8 @@ export async function addAppointment(
     .select("id")
     .eq("patient_id", data.patient_id)
     .eq("appointment_date", appointment_date)
-    .eq("time_slot", time_slot);
+    .eq("time_slot", time_slot)
+    .limit(1);
 
   if (existing && existing.length > 0) {
     throw new Error("This patient already has an appointment for the selected date and time.");
@@ -60,17 +62,34 @@ export async function addAppointment(
   const { data: inserted, error } = await supabase
     .from("appointments")
     .insert({ ...data, patient_name, appointment_date, time_slot })
-    .select("id")
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "Failed to book appointment.", {
+        "23505": "This patient already has an appointment for the selected date and time.",
+      })
+    );
+  }
+
+  return inserted as Appointment;
+}
+
+export async function updateAppointmentStatus(
+  id: string,
+  status: AppointmentStatus
+): Promise<Appointment> {
+  if (!id) throw new Error("Appointment not found.");
+  const { data, error } = await supabase
+    .from("appointments")
+    .update({ status })
+    .eq("id", id)
+    .select("*")
     .single();
 
   if (error) throw new Error(error.message);
-  return inserted.id;
-}
-
-export async function updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
-  if (!id) throw new Error("Appointment not found.");
-  const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
-  if (error) throw new Error(error.message);
+  return data as Appointment;
 }
 
 export async function deleteAppointment(id: string): Promise<void> {

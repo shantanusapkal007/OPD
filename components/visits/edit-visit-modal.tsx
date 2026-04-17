@@ -5,7 +5,7 @@ import { Trash2, Plus, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
-import { updateVisit, getVisit } from "@/services/visit.service"
+import { updateVisit } from "@/services/visit.service"
 import { calculateEDD, validateMedicines } from "@/lib/visit-validators"
 import type { Visit, Medicine } from "@/lib/types"
 
@@ -108,13 +108,8 @@ export function EditVisitModal({ isOpen, visit, userId, onClose, onSaved }: Edit
         follow_up_date: follow_up_date || undefined,
       }
 
-      await updateVisit(visit.id!, updateData, userId)
-
-      // Fetch the real saved visit data from Database
-      const savedVisit = await getVisit(visit.id!)
-      if (savedVisit) {
-        onSaved(savedVisit)
-      }
+      const savedVisit = await updateVisit(visit.id!, updateData, userId)
+      onSaved(savedVisit)
       onClose()
     } catch (error: any) {
       setErrors([error.message || "Failed to update visit"])

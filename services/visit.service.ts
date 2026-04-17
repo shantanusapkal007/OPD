@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { clearPatientCache } from "@/services/patient.service";
 import { validateVisitBasics } from "@/lib/visit-validators";
 import type { Medicine, Visit } from "@/lib/types";
@@ -48,6 +49,25 @@ export async function getLatestVisitsForPatients(
 
   for (const id of patientIds) result[id] = null;
 
+  const applyResults = (visits: Visit[]) => {
+    // Only keep the first (latest) one per patient
+    for (const visit of visits) {
+      if (!result[visit.patient_id]) {
+        result[visit.patient_id] = visit;
+      }
+    }
+  };
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "get_latest_visits_for_patients",
+    { p_patient_ids: patientIds }
+  );
+
+  if (!rpcError) {
+    applyResults((rpcData ?? []) as Visit[]);
+    return result;
+  }
+
   const { data, error } = await supabase
     .from("visits")
     .select("*")
@@ -55,18 +75,11 @@ export async function getLatestVisitsForPatients(
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-
-  for (const visit of (data ?? []) as Visit[]) {
-    // Only keep the first (latest) one per patient
-    if (!result[visit.patient_id]) {
-      result[visit.patient_id] = visit;
-    }
-  }
-
+  applyResults((data ?? []) as Visit[]);
   return result;
 }
 
-export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<string> {
+export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<Visit> {
   const patient_name = data.patient_name?.trim();
   const complaints = data.complaints?.trim();
   const diagnosis = data.diagnosis?.trim();
@@ -91,10 +104,10 @@ export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<
   const { data: inserted, error } = await supabase
     .from("visits")
     .insert(sanitizedData)
-    .select("id")
+    .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(getSupabaseErrorMessage(error, "Failed to record visit."));
 
   // Handle billing
   if (total_bill > 0) {
@@ -119,7 +132,7 @@ export async function addVisit(data: Omit<Visit, "id" | "created_at">): Promise<
   }
 
   clearPatientCache();
-  return inserted.id;
+  return inserted as Visit;
 }
 
 export async function getUpcomingFollowUps(limit?: number): Promise<Visit[]> {
@@ -165,7 +178,7 @@ export async function updateVisit(
   visitId: string,
   updates: Partial<Visit>,
   userId: string
-): Promise<void> {
+): Promise<Visit> {
   if (!visitId) throw new Error("Visit ID is required");
   if (!userId) throw new Error("User ID is required for audit trail");
 
@@ -188,13 +201,16 @@ export async function updateVisit(
     edited_by: userId,
   });
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("visits")
     .update(sanitizedUpdates)
-    .eq("id", visitId);
+    .eq("id", visitId)
+    .select("*")
+    .single();
 
   if (error) throw new Error(error.message);
   clearPatientCache();
+  return data as Visit;
 }
 
 export async function removeMedicineFromVisit(

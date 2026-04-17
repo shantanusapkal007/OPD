@@ -49,7 +49,13 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, pathname, router]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-500">Loading...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-slate-500 gap-3">
+        <div className="w-8 h-8 border-3 border-slate-200 border-t-blue-600 rounded-full animate-spin" />
+        <p className="text-sm font-medium">Connecting to clinic database...</p>
+        <p className="text-xs text-slate-400">This may take a moment if the server was sleeping</p>
+      </div>
+    );
   }
 
   if (pathname === '/offline') {

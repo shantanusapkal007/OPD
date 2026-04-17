@@ -59,7 +59,7 @@ export default function SettingsPage() {
     setSaving(true)
 
     try {
-      await updateClinicSettings({
+      const updatedSettings = await updateClinicSettings({
         clinic_name: settings.clinic_name.trim() || "OPD Clinic",
         doctor_name: settings.doctor_name.trim(),
         specialization: settings.specialization.trim(),
@@ -69,6 +69,7 @@ export default function SettingsPage() {
         address: settings.address.trim(),
         logo_url: settings.logo_url?.trim(),
       })
+      setSettings({ ...defaultSettings, ...updatedSettings })
       showToast("Clinic settings saved successfully.", "success")
     } catch (error: any) {
       showToast(error.message || "Failed to save clinic settings.", "error")

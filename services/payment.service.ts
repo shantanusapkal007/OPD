@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import { clearPatientCache } from "@/services/patient.service";
 import type { Payment } from "@/lib/types";
 
@@ -23,7 +24,7 @@ export async function getPaymentsByPatient(patientId: string): Promise<Payment[]
   return (data ?? []) as Payment[];
 }
 
-export async function addPayment(data: Omit<Payment, "id" | "created_at">): Promise<string> {
+export async function addPayment(data: Omit<Payment, "id" | "created_at">): Promise<Payment> {
   const amount = Number(data.amount);
   const patient_name = data.patient_name?.trim();
   const date = data.date?.trim();
@@ -32,34 +33,34 @@ export async function addPayment(data: Omit<Payment, "id" | "created_at">): Prom
     throw new Error("Please enter a valid payment.");
   }
 
-  // Verify patient exists
-  const { data: patient, error: pErr } = await supabase
-    .from("patients")
-    .select("id")
-    .eq("id", data.patient_id)
-    .single();
-
-  if (pErr || !patient) throw new Error("Patient not found.");
-
-  // Insert payment
   const { data: inserted, error } = await supabase
     .from("payments")
     .insert({ ...data, amount, patient_name, date })
-    .select("id")
+    .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "Failed to record payment.", {
+        "23503": "Patient not found.",
+      })
+    );
+  }
 
   // Update Khata balance if paid
   if (data.status === "paid") {
-    await supabase.rpc("update_khata_balance", {
+    const { error: balanceError } = await supabase.rpc("update_khata_balance", {
       p_id: data.patient_id,
       p_amount: amount,
     });
+
+    if (balanceError) {
+      throw new Error("Payment was saved, but khata balance could not be updated.");
+    }
   }
 
   clearPatientCache();
-  return inserted.id;
+  return inserted as Payment;
 }
 
 export async function getTodayRevenue(): Promise<number> {

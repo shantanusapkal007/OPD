@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseErrorMessage } from "@/lib/supabase-errors";
 import type { Medicine, Patient, TreatmentType } from "@/lib/types";
 
 // ─── Cache ───────────────────────────────────────────────
@@ -149,7 +150,7 @@ export async function searchPatients(term: string, maxResults?: number): Promise
 
 export async function addPatient(
   data: Omit<Patient, "id" | "created_at" | "updated_at">
-): Promise<string> {
+): Promise<Patient> {
   const caseNumber = normalizeCaseNumber(data.case_number);
   const fullName = cleanText(data.full_name);
   const mobileNumber = cleanPhone(data.mobile_number);
@@ -157,17 +158,6 @@ export async function addPatient(
   if (!caseNumber) throw new Error("Case number is required.");
   if (!fullName) throw new Error("Patient name is required.");
   if (!mobileNumber) throw new Error("Mobile number is required.");
-
-  const { data: existing, error: existingError } = await supabase
-    .from("patients")
-    .select("id")
-    .eq("case_number", caseNumber)
-    .maybeSingle();
-
-  if (existingError) throw new Error(existingError.message);
-  if (existing) {
-    throw new Error("Case number already exists.");
-  }
 
   const normalized = stripUndefinedValues({
     ...data,
@@ -191,15 +181,21 @@ export async function addPatient(
   const { data: inserted, error } = await supabase
     .from("patients")
     .insert(normalized)
-    .select("id")
+    .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "Failed to create patient.", {
+        "23505": "Case number already exists.",
+      })
+    );
+  }
   invalidatePatientCache();
-  return inserted.id;
+  return inserted as Patient;
 }
 
-export async function updatePatient(id: string, data: Partial<Patient>): Promise<void> {
+export async function updatePatient(id: string, data: Partial<Patient>): Promise<Patient> {
   const updates: Record<string, unknown> = { ...data, updated_at: new Date().toISOString() };
   if (data.case_number) updates.case_number = normalizeCaseNumber(data.case_number);
   if (data.full_name) updates.full_name = cleanText(data.full_name);
@@ -219,9 +215,23 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
   if (data.current_medicines) updates.current_medicines = normalizeMedicines(data.current_medicines);
 
   const cleaned = stripUndefinedValues(updates);
-  const { error } = await supabase.from("patients").update(cleaned).eq("id", id);
-  if (error) throw new Error(error.message);
+  const { data: updated, error } = await supabase
+    .from("patients")
+    .update(cleaned)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(
+      getSupabaseErrorMessage(error, "Failed to update patient.", {
+        "23505": "Case number already exists.",
+      })
+    );
+  }
+
   invalidatePatientCache();
+  return updated as Patient;
 }
 
 export async function deletePatient(id: string): Promise<void> {
@@ -259,8 +269,12 @@ export async function updatePatientBalance(id: string, amount: number): Promise<
 }
 
 export async function getKhataPatients(): Promise<Patient[]> {
-  const all = await getPatients();
-  return all
-    .filter((p) => (p.khata_balance ?? 0) !== 0)
-    .sort((a, b) => (a.khata_balance || 0) - (b.khata_balance || 0));
+  const { data, error } = await supabase
+    .from("patients")
+    .select("*")
+    .neq("khata_balance", 0)
+    .order("khata_balance", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Patient[];
 }

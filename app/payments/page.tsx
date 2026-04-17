@@ -8,10 +8,25 @@ import { Modal } from "@/components/ui/modal"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { formatCurrency } from "@/lib/utils"
-import { getPayments, addPayment, getPaymentStats } from "@/services/payment.service"
+import { getPayments, addPayment } from "@/services/payment.service"
 import { searchPatients, getPatient } from "@/services/patient.service"
 import type { Payment, Patient, PaymentMethod, PaymentStatus } from "@/lib/types"
 import { useToast } from "@/components/ui/toast"
+
+function buildPaymentStats(items: Payment[]) {
+  const total = items
+    .filter((payment) => payment.status === "paid")
+    .reduce((sum, payment) => sum + payment.amount, 0)
+  const pending = items
+    .filter((payment) => payment.status === "pending")
+    .reduce((sum, payment) => sum + payment.amount, 0)
+
+  return {
+    total,
+    count: items.length,
+    pending,
+  }
+}
 
 export default function PaymentsPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -39,8 +54,7 @@ export default function PaymentsPage() {
     try {
       const data = await getPayments()
       setPayments(data)
-      const st = await getPaymentStats()
-      setStats(st)
+      setStats(buildPaymentStats(data))
       setError("")
     } catch (e) {
       setError("Failed to load payments.")
@@ -83,7 +97,7 @@ export default function PaymentsPage() {
         throw new Error("Enter a valid payment amount.")
       }
 
-      await addPayment({
+      const recordedPayment = await addPayment({
         patient_id: selectedPatient.id!,
         patient_name: selectedPatient.full_name,
         amount,
@@ -97,7 +111,12 @@ export default function PaymentsPage() {
       }
       setIsPaymentModalOpen(false)
       resetPaymentState()
-      fetchPayments()
+      setPayments((current) => [recordedPayment, ...current])
+      setStats((current) => ({
+        total: current.total + (recordedPayment.status === "paid" ? recordedPayment.amount : 0),
+        count: current.count + 1,
+        pending: current.pending + (recordedPayment.status === "pending" ? recordedPayment.amount : 0),
+      }))
     } catch (e: any) {
       showToast(e.message || "Failed to record payment.", "error")
     } finally {

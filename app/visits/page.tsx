@@ -9,7 +9,7 @@ import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import Image from "next/image"
 import { getVisits, addVisit, updateVisitImages } from "@/services/visit.service"
-import { searchPatients, addPatient, getNextPatientCaseNumber, getPatient } from "@/services/patient.service"
+import { searchPatients, addPatient, getNextPatientCaseNumber } from "@/services/patient.service"
 import { uploadFilesToStorage, validateImageFiles } from "@/services/storage.service"
 import type { Visit, Patient, Medicine } from "@/lib/types"
 import { useToast } from "@/components/ui/toast"
@@ -74,56 +74,10 @@ export default function VisitsPage() {
     if (el) el.value = d.toISOString().split("T")[0]
   }
 
-  const handlePrint = (visit: Visit) => {
-    const printContent = `
-      <html><head><title>Prescription</title>
-      <style>
-        body { font-family: sans-serif; padding: 40px; color: #0f172a; }
-        .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 25px; }
-        h1 { margin: 0; color: #0f172a; font-size: 26px; font-weight: 700; }
-        h3 { margin: 5px 0 0 0; color: #475569; font-size: 14px; font-weight: normal; }
-        .pat-info { display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 14px; background: #f8fafc; padding: 12px; border-radius: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
-        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f1f5f9; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; }
-        td { font-size: 14px; }
-        .notes { font-size: 11px; color: #64748b; margin-top: 4px; display: block; }
-        .rx-title { margin: 0 0 10px 0; font-size: 20px; font-weight: 600; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px;}
-        .footer { margin-top: 80px; text-align: right; }
-        .sig { border-top: 1px solid #000; padding-top: 5px; display: inline-block; width: 200px; text-align: center; font-size: 14px;}
-        .section { margin-top: 30px; font-size: 14px;}
-      </style>
-      </head><body>
-        <div class="header">
-          <h1>${process.env.NEXT_PUBLIC_APP_NAME || 'OPD Clinic'}</h1>
-          <h3>Dr. Consultant Physician | MBBS, MD</h3>
-        </div>
-        <div class="pat-info">
-          <div><strong>Patient:</strong> ${visit.patient_name}</div>
-          <div><strong>Date:</strong> ${visit.created_at ? new Date(visit.created_at).toLocaleDateString() : new Date().toLocaleDateString()}</div>
-        </div>
-        <div class="rx-title">Rx</div>
-        <table>
-          <thead><tr><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead>
-          <tbody>
-            ${visit.prescriptions?.map(p => `<tr><td><strong>${p.name}</strong>${p.notes ? `<span class="notes">${p.notes}</span>` : ''}</td><td>${p.dosage}</td><td>${p.frequency}</td><td>${p.days} Days</td></tr>`).join('')}
-          </tbody>
-        </table>
-        
-        ${visit.advice ? `<div class="section"><strong>Advice & Instructions:</strong> <p>${visit.advice}</p></div>` : ''}
-        ${visit.follow_up_date ? `<div><strong>Follow Up:</strong> ${new Date(visit.follow_up_date).toLocaleDateString()}</div>` : ''}
-
-        <div class="footer"><div class="sig">Doctor Signature</div></div>
-      </body></html>
-    `;
-    const printWin = window.open('', '', 'width=800,height=600');
-    if (printWin) {
-      printWin.document.write(printContent);
-      printWin.document.close();
-      printWin.focus();
-      printWin.print();
-      printWin.close();
-    }
+  const openPrescriptionPrint = (visitId?: string, autoPrint = false) => {
+    if (!visitId) return
+    const url = autoPrint ? `/visits/${visitId}/print?autoprint=1` : `/visits/${visitId}/print`
+    window.open(url, "_blank", "noopener,noreferrer")
   }
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -359,7 +313,7 @@ export default function VisitsPage() {
         }
       }
 
-      await addVisit({
+      const createdVisit = await addVisit({
         patient_id: selectedPatient.id!,
         patient_name: selectedPatient.full_name,
         visit_images: visit_images,
@@ -381,13 +335,20 @@ export default function VisitsPage() {
       })
 
 
-
       if (typeof form.reset === "function") {
         form.reset()
       }
       setIsVisitModalOpen(false)
       resetVisitFormState()
-      fetchVisits()
+      setVisits((current) => [createdVisit, ...current])
+
+      // Auto-open prescription print if medicines were prescribed
+      if (prescriptionsToSave.length > 0 && createdVisit.id) {
+        showToast("Visit saved! Opening prescription for printing...", "success")
+        setTimeout(() => openPrescriptionPrint(createdVisit.id, true), 400)
+      } else {
+        showToast("Visit recorded successfully!", "success")
+      }
     } catch (error: unknown) {
       showToast(getErrorMessage(error, "Failed to record visit."), "error")
     } finally {
@@ -433,11 +394,7 @@ export default function VisitsPage() {
                   const newPatient = {
                     full_name: name, mobile_number: mobile, case_number: nextCaseNumber || "CS-1001", treatment_type: "Allopathic" as const, gender: "Other" as const, age: 0
                   };
-                  const newId = await addPatient(newPatient);
-                  const createdPatient = await getPatient(newId);
-                  if (!createdPatient) {
-                    throw new Error("Patient was created but could not be loaded.");
-                  }
+                  const createdPatient = await addPatient(newPatient);
                   setSelectedPatient(createdPatient);
                   setIsQuickAddPatient(false);
                 } catch (error: unknown) { showToast(getErrorMessage(error, "Failed to add patient"), 'error'); } finally { setIsSaving(false); }
@@ -680,7 +637,8 @@ export default function VisitsPage() {
                 <div className="mt-4 pt-3 border-t border-slate-200 print-rx">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase mb-3 flex items-center justify-between">
                      <span>Rx (Prescription)</span>
-                     <Button variant="ghost" size="sm" className="h-6 text-[10px] hidden sm:flex border border-slate-200" onClick={() => handlePrint(visit)}><Printer className="w-3 h-3 mr-1"/> Print PDF</Button>
+                     <Button variant="ghost" size="sm" className="h-6 text-[10px] hidden sm:flex border border-slate-200" onClick={() => openPrescriptionPrint(visit.id)}><Printer className="w-3 h-3 mr-1"/> Print Rx</Button>
+                     <Button variant="ghost" size="sm" className="h-6 text-[10px] hidden sm:flex border border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => openPrescriptionPrint(visit.id, true)}><Printer className="w-3 h-3 mr-1"/> Quick Print</Button>
                   </h4>
                   <div className="overflow-x-auto border border-slate-100 rounded-lg">
                     <table className="w-full text-sm text-left">

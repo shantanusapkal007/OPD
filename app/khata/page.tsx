@@ -68,8 +68,16 @@ export default function KhataBookPage() {
         date: new Date().toISOString().split("T")[0],
       });
       
-      const data = await getKhataPatients();
-      setPatients(data);
+      setPatients((current) =>
+        current
+          .map((patient) =>
+            patient.id === clearDuePatient.id
+              ? { ...patient, khata_balance: (patient.khata_balance ?? 0) + amount }
+              : patient
+          )
+          .filter((patient) => (patient.khata_balance ?? 0) !== 0)
+          .sort((a, b) => (a.khata_balance || 0) - (b.khata_balance || 0))
+      );
       showToast(`₹${amount} received from ${clearDuePatient.full_name}`, "success");
     } catch (e: any) {
       showToast(e.message || "Failed to clear due", "error");

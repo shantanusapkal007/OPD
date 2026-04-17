@@ -10,9 +10,13 @@ import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useRouter } from "next/navigation"
 import { getAppointmentsByDate, addAppointment, updateAppointmentStatus } from "@/services/appointment.service"
-import { searchPatients, addPatient, getNextPatientCaseNumber, getPatient } from "@/services/patient.service"
+import { searchPatients, addPatient, getNextPatientCaseNumber } from "@/services/patient.service"
 import type { Appointment, Patient } from "@/lib/types"
 import { useToast } from "@/components/ui/toast"
+
+function sortAppointmentsByTime(items: Appointment[]) {
+  return [...items].sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+}
 
 export default function AppointmentsPage() {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false)
@@ -107,7 +111,7 @@ export default function AppointmentsPage() {
         throw new Error("Date and time are required.");
       }
 
-      await addAppointment({
+      const createdAppointment = await addAppointment({
         patient_id: selectedPatient.id!,
         patient_name: selectedPatient.full_name,
         appointment_date: fd.get("date") as string,
@@ -121,7 +125,9 @@ export default function AppointmentsPage() {
       }
       setIsBookModalOpen(false)
       resetBookingState()
-      fetchAppointments()
+      if (createdAppointment.appointment_date === selectedDate) {
+        setAppointments((current) => sortAppointmentsByTime([...current, createdAppointment]))
+      }
     } catch (e: any) {
       showToast(e.message || "Failed to book appointment.", "error")
     } finally {
@@ -171,11 +177,7 @@ export default function AppointmentsPage() {
                   const newPatient = {
                     full_name: name, mobile_number: mobile, case_number: nextCaseNumber || "CS-1001", treatment_type: "Allopathic" as const, gender: "Other" as const, age: 0
                   };
-                  const newId = await addPatient(newPatient);
-                  const createdPatient = await getPatient(newId);
-                  if (!createdPatient) {
-                    throw new Error("Patient was created but could not be loaded.");
-                  }
+                  const createdPatient = await addPatient(newPatient);
                   setSelectedPatient(createdPatient);
                   setIsQuickAddPatient(false);
                 } catch (e: any) { showToast(e.message || 'Failed to add patient', 'error'); } finally { setIsSaving(false); }
@@ -287,8 +289,10 @@ export default function AppointmentsPage() {
                 <select value={apt.status} disabled={updatingStatusId === apt.id} onChange={async (e) => {
                   try {
                     setUpdatingStatusId(apt.id!)
-                    await updateAppointmentStatus(apt.id!, e.target.value as any)
-                    await fetchAppointments()
+                    const updatedAppointment = await updateAppointmentStatus(apt.id!, e.target.value as any)
+                    setAppointments((current) =>
+                      current.map((item) => (item.id === updatedAppointment.id ? updatedAppointment : item))
+                    )
                   } catch (error: any) {
                     showToast(error.message || "Failed to update appointment status.", "error")
                   } finally {

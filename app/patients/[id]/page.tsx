@@ -229,13 +229,13 @@ export default function PatientDetailPage() {
         updateData.menstrual_cycle_days = null;
       }
 
-      await updatePatient(patient.id, updateData)
+      const updated = await updatePatient(patient.id, updateData)
       if (typeof form.reset === "function") {
         form.reset()
       }
-      const updated = await getPatient(patient.id)
       setPatient(updated)
       resetEditFormState(updated)
+      setClinicalDetailsFormData(buildClinicalDetailsFormData(updated))
       setIsEditModalOpen(false)
     } catch (e: any) {
       showToast(e.message || "Failed to update patient.", "error")
@@ -261,8 +261,7 @@ export default function PatientDetailPage() {
         repetition: clinicalDetailsFormData.repetition.trim(),
       }
       
-      await updatePatient(patient.id, updateData)
-      const updated = await getPatient(patient.id)
+      const updated = await updatePatient(patient.id, updateData)
       setPatient(updated)
       setClinicalDetailsFormData(buildClinicalDetailsFormData(updated))
       showToast("Clinical details saved", "success")
@@ -284,8 +283,7 @@ export default function PatientDetailPage() {
     setIsSavingMedicines(true)
     try {
       const nextMedicines = sanitizeMedicines(medicineDraft)
-      await updatePatient(patient.id, { current_medicines: nextMedicines })
-      const updated = await getPatient(patient.id)
+      const updated = await updatePatient(patient.id, { current_medicines: nextMedicines })
       setPatient(updated)
       setEditMedicines(updated?.current_medicines || [])
       setMedicineDraft(buildMedicineDraft(updated?.current_medicines || []))

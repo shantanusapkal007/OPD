@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/components/providers/AuthProvider"
 import { getUpcomingFollowUps } from "@/services/visit.service"
-import { getAppointments } from "@/services/appointment.service"
+import { getAppointmentsByDate } from "@/services/appointment.service"
 import type { Visit, Appointment } from "@/lib/types"
 
 const appName = process.env.NEXT_PUBLIC_APP_NAME || "OPD Clinic";
@@ -41,15 +41,15 @@ export function Header() {
     setNotifLoading(true)
     try {
       const today = new Date().toISOString().split("T")[0]
-      const [fups, allApts] = await Promise.all([
-        getUpcomingFollowUps(),
-        getAppointments(),
+      const [fups, todayApts] = await Promise.all([
+        getUpcomingFollowUps(8),
+        getAppointmentsByDate(today),
       ])
       const threeDaysFromNow = new Date()
       threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3)
       const threeDaysStr = threeDaysFromNow.toISOString().split("T")[0]
       setFollowUps(fups.filter((f: Visit) => f.follow_up_date && f.follow_up_date <= threeDaysStr).slice(0, 8))
-      setTodayAppointments(allApts.filter((a: Appointment) => a.status === "scheduled" && a.appointment_date === today).slice(0, 8))
+      setTodayAppointments(todayApts.filter((a: Appointment) => a.status === "scheduled").slice(0, 8))
     } catch {
       // silently fail
     } finally {
