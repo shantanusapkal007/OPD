@@ -1,8 +1,9 @@
 "use client"
 
-import { Edit } from "lucide-react"
+import { Edit, Printer } from "lucide-react"
 import { Visit } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/lib/utils"
 
 interface VisitCardProps {
@@ -12,6 +13,8 @@ interface VisitCardProps {
 }
 
 export function VisitCard({ visit, onEdit, showClinicalDetails = true }: VisitCardProps) {
+  const hasMedicines = showClinicalDetails && visit.prescriptions && visit.prescriptions.length > 0
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <div className="flex items-start justify-between mb-4">
@@ -24,15 +27,6 @@ export function VisitCard({ visit, onEdit, showClinicalDetails = true }: VisitCa
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {showClinicalDetails && (
-            <button
-              onClick={() => window.open(`/visits/${visit.id}/print`, '_blank')}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors print:hidden"
-              title="Print Prescription"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-600"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-            </button>
-          )}
           {showClinicalDetails && onEdit && (
             <button
               onClick={() => onEdit(visit)}
@@ -73,17 +67,44 @@ export function VisitCard({ visit, onEdit, showClinicalDetails = true }: VisitCa
           </div>
         )}
 
-        {showClinicalDetails && visit.prescriptions && visit.prescriptions.length > 0 && (
+        {hasMedicines && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase">Medicines</p>
-            <div className="space-y-2 mt-2">
-              {visit.prescriptions.map((med, idx) => (
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase">
+                Medicines ({visit.prescriptions!.length})
+              </p>
+            </div>
+            <div className="space-y-2">
+              {visit.prescriptions!.map((med, idx) => (
                 <div key={idx} className="text-sm bg-slate-50 p-2 rounded">
                   <p className="font-medium text-slate-900">{med.name}</p>
                   <p className="text-xs text-slate-600">{med.dosage} - {med.frequency} for {med.days} days</p>
                   {med.notes && <p className="text-xs text-slate-500 italic">{med.notes}</p>}
                 </div>
               ))}
+            </div>
+
+            {/* Print Prescription buttons — right below medicines */}
+            <div className="mt-3 flex gap-2 print:hidden">
+              <Button
+                type="button"
+                size="sm"
+                className="bg-slate-900 text-white hover:bg-slate-800"
+                onClick={() => window.open(`/visits/${visit.id}/print`, '_blank')}
+              >
+                <Printer className="w-3.5 h-3.5 mr-1.5" />
+                Print Prescription
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                onClick={() => window.open(`/visits/${visit.id}/print?autoprint=1`, '_blank')}
+              >
+                <Printer className="w-3.5 h-3.5 mr-1.5" />
+                Quick Print
+              </Button>
             </div>
           </div>
         )}
