@@ -68,11 +68,13 @@ export async function getLatestVisitsForPatients(
     return result;
   }
 
+  // Fallback: load visits for only the requested patient IDs (bounded set)
   const { data, error } = await supabase
     .from("visits")
-    .select("*")
+    .select("id,patient_id,patient_name,complaints,diagnosis,vitals,prescriptions,created_at,follow_up_date")
     .in("patient_id", patientIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(Math.max(patientIds.length * 3, 100)); // reasonable upper bound
 
   if (error) throw new Error(error.message);
   applyResults((data ?? []) as Visit[]);
