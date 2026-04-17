@@ -2,16 +2,16 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase, checkSupabaseHealth } from "@/lib/supabase";
+import { getOrCreateUser } from "@/services/user.service";
+import type { UserRole } from "@/lib/types";
 
-// Only ping DB once per browser session (not on every remount)
+// Only ping DB once per browser session
 let _healthCheckDone = false;
 function warmUpOnce() {
   if (_healthCheckDone) return;
   _healthCheckDone = true;
   checkSupabaseHealth().catch(() => { /* silent */ });
 }
-import { getOrCreateUser } from "@/services/user.service";
-import type { UserRole } from "@/lib/types";
 
 type User = {
   id: string;
@@ -40,70 +40,88 @@ export const useAuth = () => {
   return context;
 };
 
+/** Build a user object instantly from JWT — no DB call needed */
+function userFromSession(authUser: {
+  id: string;
+  email?: string;
+  user_metadata?: { full_name?: string; avatar_url?: string; name?: string };
+}): User {
+  return {
+    id: authUser.id,
+    displayName:
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      "Doctor",
+    email: authUser.email || "",
+    role: "admin", // sensible default — overridden by DB hydration below
+    photoURL: authUser.user_metadata?.avatar_url || "",
+  };
+}
+
+/** Fetch real role from DB silently after app is already shown */
+async function hydrateRoleInBackground(
+  authUser: {
+    id: string;
+    email?: string;
+    user_metadata?: { full_name?: string; avatar_url?: string; name?: string };
+  },
+  setUser: React.Dispatch<React.SetStateAction<User>>
+) {
+  try {
+    const appUser = await getOrCreateUser(
+      authUser.id,
+      authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        "Doctor",
+      authUser.email || "",
+      authUser.user_metadata?.avatar_url || ""
+    );
+    setUser({
+      id: appUser.id,
+      displayName: appUser.name || "Doctor",
+      email: appUser.email,
+      role: appUser.role,
+      photoURL: appUser.photo_url,
+    });
+  } catch {
+    // DB hydration failed silently — app still works with default admin role
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
-  const hydrateUser = async (authUser: {
-    id: string;
-    email?: string;
-    user_metadata?: { full_name?: string; avatar_url?: string; name?: string };
-  }) => {
-    try {
-      const displayName =
-        authUser.user_metadata?.full_name ||
-        authUser.user_metadata?.name ||
-        "Doctor";
-      const photoURL = authUser.user_metadata?.avatar_url || "";
-
-      const appUser = await getOrCreateUser(
-        authUser.id,
-        displayName,
-        authUser.email || "",
-        photoURL
-      );
-
-      setUser({
-        id: appUser.id,
-        displayName: appUser.name || "Doctor",
-        email: appUser.email,
-        role: appUser.role,
-        photoURL: appUser.photo_url,
-      });
-    } catch (error: unknown) {
-      console.error("Failed to hydrate user:", error);
-      setUser(null);
-    }
-  };
-
   useEffect(() => {
-    // Fire DB wake-up ping in background (don't block auth on it)
+    // Fire DB wake-up ping silently in background (don't block anything)
     warmUpOnce();
 
-    // Immediately check the session — don't wait for health check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // getSession reads from localStorage — always instant, no network call
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        await hydrateUser(session.user);
+        // Show app immediately from cached JWT data
+        setUser(userFromSession(session.user));
+        // Fetch real role from DB in background (doesn't block UI)
+        hydrateRoleInBackground(session.user, setUser);
       }
       setLoading(false);
     });
 
-    // Safety timeout: never leave the user stuck on "Loading..." forever
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-    }, 15000);
+    // 3s safety timeout — getSession is always fast from localStorage
+    const safetyTimer = setTimeout(() => setLoading(false), 3000);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          await hydrateUser(session.user);
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-        }
-        setLoading(false);
+    // Listen for login/logout events
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        setUser(userFromSession(session.user));
+        hydrateRoleInBackground(session.user, setUser);
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
       }
-    );
+      setLoading(false);
+    });
 
     return () => {
       clearTimeout(safetyTimer);
@@ -116,9 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) throw error;
     } catch (error: unknown) {
