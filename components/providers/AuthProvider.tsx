@@ -2,6 +2,14 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase, checkSupabaseHealth } from "@/lib/supabase";
+
+// Only ping DB once per browser session (not on every remount)
+let _healthCheckDone = false;
+function warmUpOnce() {
+  if (_healthCheckDone) return;
+  _healthCheckDone = true;
+  checkSupabaseHealth().catch(() => { /* silent */ });
+}
 import { getOrCreateUser } from "@/services/user.service";
 import type { UserRole } from "@/lib/types";
 
@@ -69,21 +77,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Pre-warm Supabase (wakes up paused free-tier projects)
-    checkSupabaseHealth().then(() => {
-      // After wake-up, check the real session
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        if (session?.user) {
-          await hydrateUser(session.user);
-        }
-        setLoading(false);
-      });
+    // Fire DB wake-up ping in background (don't block auth on it)
+    warmUpOnce();
+
+    // Immediately check the session — don't wait for health check
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        await hydrateUser(session.user);
+      }
+      setLoading(false);
     });
 
     // Safety timeout: never leave the user stuck on "Loading..." forever
     const safetyTimer = setTimeout(() => {
       setLoading(false);
-    }, 20000);
+    }, 15000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
