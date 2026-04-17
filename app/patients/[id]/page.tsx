@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, Edit, Calendar, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen, Printer } from "lucide-react"
+import { ArrowLeft, Edit, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
 import { EditVisitModal } from "@/components/visits/edit-visit-modal"
+import { RecordVisitModal } from "@/components/visits/record-visit-modal"
 import { VisitCard } from "@/components/visits/visit-card"
 import { FORM_FIELD_PROPS, FORM_PROPS } from "@/lib/form-defaults"
 import { cn, formatCurrency, getTreatmentType } from "@/lib/utils"
@@ -40,6 +41,7 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("visits")
+  const [isRecordVisitOpen, setIsRecordVisitOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editGender, setEditGender] = useState("Male")
@@ -439,6 +441,18 @@ export default function PatientDetailPage() {
         </div>
       </Modal>
 
+      {/* Record Visit Modal — inline on patient page, no navigation needed */}
+      {patient && showClinical && (
+        <RecordVisitModal
+          isOpen={isRecordVisitOpen}
+          patient={patient}
+          onClose={() => setIsRecordVisitOpen(false)}
+          onVisitSaved={(newVisit) => {
+            setVisits(current => [newVisit, ...current])
+          }}
+        />
+      )}
+
       {/* Edit Visit Modal */}
       {selectedVisit && user && (
         <EditVisitModal
@@ -449,8 +463,7 @@ export default function PatientDetailPage() {
             setIsEditVisitModalOpen(false)
             setSelectedVisit(null)
           }}
-          onSaved={async (updatedVisit) => {
-            // Refresh all visits from the database to ensure we have the latest data
+          onSaved={async () => {
             const refreshedVisits = await getVisitsByPatient(patient_id)
             setVisits(refreshedVisits)
             setSelectedVisit(null)
@@ -511,6 +524,11 @@ export default function PatientDetailPage() {
             </div>
           </div>
           <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:justify-end">
+            {showClinical && (
+              <Button size="sm" className="flex-1 bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 lg:flex-none" onClick={() => setIsRecordVisitOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Record Visit
+              </Button>
+            )}
             <Button size="sm" className="flex-1 bg-slate-900 text-white shadow-lg shadow-slate-200 hover:bg-slate-800 lg:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
               <Edit className="w-4 h-4 mr-2" /> Edit Profile
             </Button>
@@ -606,113 +624,14 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        {showClinical && (
-          <div className="mt-6 rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-sky-50 p-5 shadow-[0_20px_50px_-30px_rgba(245,158,11,0.45)]">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
-                  <Printer className="h-4 w-4 text-amber-600" /> Prescription Printing
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Open a clean prescription preview or send any saved prescription directly to print.
-                </p>
-              </div>
-              <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
-                {printableVisits.length} printable visit{printableVisits.length === 1 ? "" : "s"}
-              </span>
-            </div>
-
-            {latestPrintableVisit ? (
-              <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
-                <div className="rounded-[24px] border border-amber-100 bg-white/90 p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
-                    Latest Prescription
-                  </p>
-                  <h4 className="mt-2 text-xl font-semibold text-slate-900">
-                    {latestPrintableVisit.diagnosis || "Consultation"}
-                  </h4>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Visit date: {formatVisitDate(latestPrintableVisit.created_at)}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {latestPrintableVisit.prescriptions?.length ?? 0} medicine
-                    {(latestPrintableVisit.prescriptions?.length ?? 0) === 1 ? "" : "s"} saved for printing
-                  </p>
-                  {latestPrintableVisit.advice ? (
-                    <p className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                      {latestPrintableVisit.advice}
-                    </p>
-                  ) : null}
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Button
-                      className="bg-slate-900 text-white hover:bg-slate-800"
-                      onClick={() => openPrescriptionPrint(latestPrintableVisit.id)}
-                    >
-                      <Printer className="mr-2 h-4 w-4" /> Open Preview
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-amber-200 bg-white text-amber-700 hover:bg-amber-50"
-                      onClick={() => openPrescriptionPrint(latestPrintableVisit.id, true)}
-                    >
-                      <Printer className="mr-2 h-4 w-4" /> Print Now
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-sky-100 bg-white/85 p-5 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">
-                    Printable History
-                  </p>
-                  <div className="mt-4 space-y-3">
-                    {printableVisits.slice(0, 4).map((visit) => (
-                      <div
-                        key={visit.id}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            {formatVisitDate(visit.created_at)}
-                          </p>
-                          <p className="truncate text-sm font-medium text-slate-900">
-                            {visit.diagnosis || "Consultation"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {visit.prescriptions?.length ?? 0} medicine
-                            {(visit.prescriptions?.length ?? 0) === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0 border-slate-200 bg-white"
-                          onClick={() => openPrescriptionPrint(visit.id, true)}
-                        >
-                          <Printer className="mr-2 h-4 w-4" /> Print
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-[24px] border border-dashed border-slate-200 bg-white/80 px-5 py-8 text-center text-sm text-slate-500">
-                No prescription is ready to print yet. Record a visit with medicines to enable printable prescriptions for this patient.
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/60 pt-6 sm:grid-cols-3">
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-sky-200 bg-white/80 text-slate-700 hover:bg-sky-50" onClick={() => router.push('/appointments')}>
-            <Calendar className="w-4 h-4 mr-2 text-sky-600" /> Book Appointment
-          </Button>
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-emerald-200 bg-white/80 text-slate-700 hover:bg-emerald-50" onClick={() => router.push('/visits')}>
-            <Pill className="w-4 h-4 mr-2 text-emerald-600" /> Record Visit
-          </Button>
-          <Button variant="outline" className="w-full justify-start rounded-2xl border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50" onClick={() => setIsWhatsAppModalOpen(true)}>
+        {/* Quick action row — simplified */}
+        <div className="mt-6 flex flex-wrap gap-3 border-t border-white/60 pt-6">
+          {showClinical && (
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setIsRecordVisitOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Record Visit
+            </Button>
+          )}
+          <Button variant="outline" className="border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50" onClick={() => setIsWhatsAppModalOpen(true)}>
             <MessageSquare className="w-4 h-4 mr-2 text-violet-600" /> WhatsApp
           </Button>
         </div>
@@ -900,15 +819,25 @@ export default function PatientDetailPage() {
           return true;
         }).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
-            {tab === "khata" ? "Khata Ledger" : tab} ({tab === "visits" ? visits.length : tab === "appointments" ? appointments.length : tab === "payments" ? payments.length : (visits.length + payments.length)})
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
+            {tab === "visits" ? `Visit History (${visits.length})` : tab === "khata" ? `Khata Ledger (${visits.length + payments.length})` : `${tab.charAt(0).toUpperCase() + tab.slice(1)} (${tab === "appointments" ? appointments.length : payments.length})`}
           </button>
         ))}
       </div>
 
       {activeTab === "visits" && (
         <div className="space-y-4">
-          {visits.length === 0 && <div className="py-12 text-center text-sm text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">No visit records</div>}
+          {visits.length === 0 && (
+            <div className="py-16 text-center bg-white rounded-xl border border-dashed border-slate-200">
+              <Pill className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-slate-600">No visits recorded yet</p>
+              {showClinical && (
+                <Button className="mt-4 bg-blue-600 text-white hover:bg-blue-700" onClick={() => setIsRecordVisitOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> Record First Visit
+                </Button>
+              )}
+            </div>
+          )}
           {visits.map(visit => (
             <VisitCard
               key={visit.id}
