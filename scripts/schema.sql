@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS public.visits (
   referral TEXT,
   follow_up_date TEXT,
   follow_up_message_enabled BOOLEAN DEFAULT false,
+  department TEXT CHECK (department IN ('Skin', 'Pediatrician', 'General', 'OBGY')),
+  setting TEXT CHECK (setting IN ('OPD', 'Daycare')),
   is_edited BOOLEAN DEFAULT false,
   edited_at TIMESTAMPTZ,
   edited_by UUID REFERENCES public.users(id),
