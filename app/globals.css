@@ -94,3 +94,111 @@ body {
     @apply hover:bg-slate-50/80 transition-all duration-300 cursor-pointer;
   }
 }
+
+@media print {
+  body.printing-patient-medicines {
+    background: #fff;
+  }
+
+  body.printing-patient-medicines * {
+    visibility: hidden;
+  }
+
+  body.printing-patient-medicines .patient-medicine-print,
+  body.printing-patient-medicines .patient-medicine-print * {
+    visibility: visible;
+  }
+
+  body.printing-patient-medicines .patient-medicine-print {
+    display: block !important;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 0;
+  }
+
+  .medicine-print-page {
+    width: 100%;
+    min-height: 100vh;
+    padding: 18mm 16mm 14mm;
+    color: #000;
+    font-family: Arial, sans-serif;
+  }
+
+  .medicine-print-header {
+    border-bottom: 2px solid #111827;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+
+  .medicine-print-kicker {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .medicine-print-header h1 {
+    margin: 4px 0 8px;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .medicine-print-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 18px;
+    font-size: 12px;
+  }
+
+  .medicine-print-rx {
+    margin-bottom: 10px;
+    font-family: Georgia, serif;
+    font-size: 34px;
+    font-weight: 700;
+  }
+
+  .medicine-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .medicine-print-table th {
+    border-bottom: 1px solid #111827;
+    padding: 8px 6px;
+    text-align: left;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+
+  .medicine-print-table td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 6px;
+    vertical-align: top;
+  }
+
+  .medicine-print-table td span {
+    display: block;
+    margin-top: 3px;
+    color: #475569;
+    font-size: 11px;
+  }
+
+  .medicine-print-footer {
+    margin-top: 45mm;
+    text-align: right;
+  }
+
+  .medicine-print-footer span {
+    display: inline-block;
+    width: 42mm;
+    border-top: 1px solid #111827;
+    padding-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}

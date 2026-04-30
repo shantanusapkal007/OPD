@@ -53,37 +53,34 @@ export function PatientMedicines({
     }
 
     return (
-      <div className="space-y-4">
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="hidden grid-cols-[1.5fr_0.7fr_0.7fr_0.5fr] gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-slate-500 sm:grid">
+          <span>Medicine</span>
+          <span>Dosage</span>
+          <span>Frequency</span>
+          <span className="text-right">Days</span>
+        </div>
         {meds.map((medicine, index) => (
           <div
             key={`${medicine.name}-${index}`}
-            className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4 shadow-sm"
+            className="grid gap-2 border-b border-slate-100 px-3 py-3 text-sm last:border-b-0 sm:grid-cols-[1.5fr_0.7fr_0.7fr_0.5fr] sm:gap-3"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h4 className="text-lg font-semibold text-slate-900">{medicine.name}</h4>
-                {medicine.potency ? (
-                  <p className="mt-1 text-sm font-medium text-emerald-700">
-                    Potency: {medicine.potency}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-3 space-y-1.5 text-sm text-slate-600">
-              <p>
-                <span className="font-medium text-slate-700">Dosage:</span> {medicine.dosage || "-"}
-              </p>
-              <p>
-                <span className="font-medium text-slate-700">Frequency:</span> {medicine.frequency || "-"}
-              </p>
-              <p>
-                <span className="font-medium text-slate-700">Duration:</span> {medicine.days || 0} days
-              </p>
-              {medicine.notes ? (
-                <p>
-                  <span className="font-medium text-slate-700">Notes:</span> {medicine.notes}
+            <div>
+              <h4 className="font-semibold text-slate-900">{medicine.name}</h4>
+              {medicine.potency ? (
+                <p className="mt-0.5 text-xs font-medium text-emerald-700">
+                  Potency: {medicine.potency}
                 </p>
               ) : null}
+              {medicine.notes ? (
+                <p className="mt-1 text-xs text-slate-500">{medicine.notes}</p>
+              ) : null}
+            </div>
+            <div className="text-slate-700"><span className="font-medium text-slate-500 sm:hidden">Dosage: </span>{medicine.dosage || "-"}</div>
+            <div className="text-slate-700"><span className="font-medium text-slate-500 sm:hidden">Frequency: </span>{medicine.frequency || "-"}</div>
+            <div className="text-slate-700 sm:text-right">
+              <span className="font-medium text-slate-500 sm:hidden">Duration: </span>
+              {medicine.days || "-"}{medicine.days ? " days" : ""}
             </div>
           </div>
         ))}

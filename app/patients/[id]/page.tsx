@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, Edit, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen, Plus } from "lucide-react"
+import { ArrowLeft, Edit, Pill, MessageSquare, Phone, Mail, Activity, UserX, BookOpen, Plus, Eye, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +48,7 @@ export default function PatientDetailPage() {
   const [editTreatmentType, setEditTreatmentType] = useState<TreatmentType>("Allopathic")
   const [editMedicines, setEditMedicines] = useState<Medicine[]>([])
   const [medicineDraft, setMedicineDraft] = useState<Medicine[]>([])
+  const [isMedicinePrintPreviewOpen, setIsMedicinePrintPreviewOpen] = useState(false)
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
   const [selectedWhatsAppNumber, setSelectedWhatsAppNumber] = useState("9420893995")
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
@@ -99,11 +100,19 @@ export default function PatientDetailPage() {
     })
   }
 
-  const openPrescriptionPrint = (visitId?: string, autoPrint = false) => {
-    if (!visitId) return
+  const printCurrentMedicines = () => {
+    if (!patient?.current_medicines?.length) return
 
-    const url = autoPrint ? `/visits/${visitId}/print?autoprint=1` : `/visits/${visitId}/print`
-    window.open(url, "_blank", "noopener,noreferrer")
+    setIsMedicinePrintPreviewOpen(false)
+    window.setTimeout(() => {
+      const printClass = "printing-patient-medicines"
+      const cleanup = () => document.body.classList.remove(printClass)
+
+      document.body.classList.add(printClass)
+      window.addEventListener("afterprint", cleanup, { once: true })
+      window.print()
+      window.setTimeout(cleanup, 800)
+    }, 0)
   }
 
   const sanitizeMedicines = (medicines: Medicine[]) =>
@@ -325,8 +334,11 @@ export default function PatientDetailPage() {
   const hasClinicalDetails =
     clinicalSummaryItems.some((item) => item.value !== "-") || Boolean(patient.present_complaints)
   const hasPatientCareSummary = hasClinicalDetails || hasSavedMedicines
-  const printableVisits = visits.filter((visit) => (visit.prescriptions?.length ?? 0) > 0)
-  const latestPrintableVisit = printableVisits[0] ?? null
+  const printDate = new Date().toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -441,7 +453,110 @@ export default function PatientDetailPage() {
         </div>
       </Modal>
 
-      {/* Record Visit Modal — inline on patient page, no navigation needed */}
+      <Modal
+        isOpen={isMedicinePrintPreviewOpen}
+        onClose={() => setIsMedicinePrintPreviewOpen(false)}
+        title="Prescription Preview"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-950">
+            <div className="mb-4 border-b border-slate-300 pb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Prescription</p>
+              <h2 className="mt-1 text-xl font-bold">{patient.full_name}</h2>
+              <div className="mt-2 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+                <p>Case: <span className="font-medium text-slate-900">{patient.case_number}</span></p>
+                <p>Date: <span className="font-medium text-slate-900">{printDate}</span></p>
+                <p>Age / Gender: <span className="font-medium text-slate-900">{patient.age} yrs / {patient.gender}</span></p>
+                <p>Mobile: <span className="font-medium text-slate-900">{patient.mobile_number}</span></p>
+              </div>
+            </div>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-3xl font-serif font-bold text-slate-900">Rx</span>
+              <span className="text-sm font-semibold text-slate-500">Current medicines</span>
+            </div>
+            <table className="w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-300 text-xs uppercase text-slate-500">
+                  <th className="py-2 pr-3">Medicine</th>
+                  <th className="py-2 pr-3">Dosage</th>
+                  <th className="py-2 pr-3">Frequency</th>
+                  <th className="py-2 text-right">Days</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {normalizedSavedMedicines.map((medicine, index) => (
+                  <tr key={`${medicine.name}-${index}`}>
+                    <td className="py-3 pr-3">
+                      <p className="font-semibold text-slate-900">{index + 1}. {medicine.name}</p>
+                      {medicine.potency ? <p className="text-xs text-slate-500">Potency: {medicine.potency}</p> : null}
+                      {medicine.notes ? <p className="text-xs text-slate-500">{medicine.notes}</p> : null}
+                    </td>
+                    <td className="py-3 pr-3 text-slate-700">{medicine.dosage}</td>
+                    <td className="py-3 pr-3 text-slate-700">{medicine.frequency}</td>
+                    <td className="py-3 text-right text-slate-700">{medicine.days || "-"}{medicine.days ? " days" : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-12 flex justify-end">
+              <div className="w-40 border-t border-slate-400 pt-2 text-center text-sm font-medium">Doctor Signature</div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsMedicinePrintPreviewOpen(false)}>Close</Button>
+            <Button onClick={printCurrentMedicines}>
+              <Printer className="w-4 h-4 mr-2" /> Print
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <div id="patient-medicine-print" className="patient-medicine-print hidden">
+        <div className="medicine-print-page">
+          <header className="medicine-print-header">
+            <p className="medicine-print-kicker">Prescription</p>
+            <h1>{patient.full_name}</h1>
+            <div className="medicine-print-meta">
+              <span>Case: {patient.case_number}</span>
+              <span>Date: {printDate}</span>
+              <span>Age / Gender: {patient.age} yrs / {patient.gender}</span>
+              <span>Mobile: {patient.mobile_number}</span>
+            </div>
+          </header>
+          <main>
+            <div className="medicine-print-rx">Rx</div>
+            <table className="medicine-print-table">
+              <thead>
+                <tr>
+                  <th>Medicine</th>
+                  <th>Dosage</th>
+                  <th>Frequency</th>
+                  <th>Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                {normalizedSavedMedicines.map((medicine, index) => (
+                  <tr key={`print-${medicine.name}-${index}`}>
+                    <td>
+                      <strong>{index + 1}. {medicine.name}</strong>
+                      {medicine.potency ? <span>Potency: {medicine.potency}</span> : null}
+                      {medicine.notes ? <span>{medicine.notes}</span> : null}
+                    </td>
+                    <td>{medicine.dosage}</td>
+                    <td>{medicine.frequency}</td>
+                    <td>{medicine.days || "-"}{medicine.days ? " days" : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </main>
+          <footer className="medicine-print-footer">
+            <span>Doctor Signature</span>
+          </footer>
+        </div>
+      </div>
+
       {patient && showClinical && (
         <RecordVisitModal
           isOpen={isRecordVisitOpen}
@@ -532,6 +647,9 @@ export default function PatientDetailPage() {
             <Button size="sm" className="flex-1 bg-slate-900 text-white shadow-lg shadow-slate-200 hover:bg-slate-800 lg:flex-none" onClick={() => { resetEditFormState(); setIsEditModalOpen(true) }}>
               <Edit className="w-4 h-4 mr-2" /> Edit Profile
             </Button>
+            <Button variant="outline" size="sm" className="flex-1 border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50 lg:flex-none" onClick={() => setIsWhatsAppModalOpen(true)}>
+              <MessageSquare className="w-4 h-4 mr-2 text-violet-600" /> WhatsApp
+            </Button>
             <Button variant="outline" size="sm" className="flex-1 border-rose-200 bg-white/80 text-rose-600 hover:bg-rose-50 hover:text-rose-700 lg:flex-none" onClick={async () => {
               const linked = await getPatientLinkedRecordCounts(patient.id!)
               const linkedSummary = [
@@ -612,10 +730,23 @@ export default function PatientDetailPage() {
 
               {hasSavedMedicines && (
                 <div className={cn(hasClinicalDetails && "border-t border-slate-200 pt-6")}>
-                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em] text-slate-700">
-                    <Pill className="h-4 w-4 text-emerald-600" /> Current Medicines
-                  </h4>
-                  <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-white p-4 shadow-sm">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700">
+                        <Pill className="h-4 w-4 text-emerald-600" /> Current Medicines
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-500">These medicines were saved with the patient profile and can be printed directly.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => setIsMedicinePrintPreviewOpen(true)}>
+                        <Eye className="h-4 w-4 mr-2" /> Preview
+                      </Button>
+                      <Button type="button" size="sm" onClick={printCurrentMedicines}>
+                        <Printer className="h-4 w-4 mr-2" /> Print
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
                     <PatientMedicines medicines={normalizedSavedMedicines} readOnly onMedicinesChange={() => {}} />
                   </div>
                 </div>
@@ -623,18 +754,6 @@ export default function PatientDetailPage() {
             </div>
           </div>
         )}
-
-        {/* Quick action row — simplified */}
-        <div className="mt-6 flex flex-wrap gap-3 border-t border-white/60 pt-6">
-          {showClinical && (
-            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => setIsRecordVisitOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Record Visit
-            </Button>
-          )}
-          <Button variant="outline" className="border-violet-200 bg-white/80 text-slate-700 hover:bg-violet-50" onClick={() => setIsWhatsAppModalOpen(true)}>
-            <MessageSquare className="w-4 h-4 mr-2 text-violet-600" /> WhatsApp
-          </Button>
-        </div>
 
         {showClinical && (
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mt-6">

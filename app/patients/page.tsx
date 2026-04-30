@@ -163,13 +163,17 @@ export default function PatientsPage() {
         patientData.menstrual_cycle_days = parseInt(fd.get("menstrual_cycle_days") as string) || null;
       }
 
-      await addPatient(patientData)
+      const createdPatient = await addPatient(patientData)
       if (typeof form.reset === "function") {
         form.reset()
       }
       setIsAddModalOpen(false)
       resetPatientFormState()
-      fetchPatients()
+      if (createdPatient.id) {
+        router.push(`/patients/${createdPatient.id}`)
+      } else {
+        fetchPatients()
+      }
     } catch (e: any) {
       showToast(e.message || "Failed to save patient. Please try again.", "error")
     } finally {
